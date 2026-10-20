@@ -1,0 +1,39 @@
+Offline BMS 1.1.1 launch regression evidence
+Date: 2026-10-13
+Runtime: JDK 17, Robolectric 4.14.1, JUnit 4.13.2
+Android SDK runtimes: API 31 (Android 12) and API 35 (Android 15)
+Native resources and native graphics enabled.
+
+The same seven cases ran on each Android SDK:
+- Fresh dark-theme dashboard and attached system-bar appearance
+- Fresh light-theme dashboard and attached system-bar appearance
+- Fresh system-theme dashboard
+- Launch with retained legacy battery preferences/profile migration
+- Every page and demo/cell rendering; coffee button present in Tools
+- Activity recreation after a theme change; saved battery retained
+- Idle monitoring-service creation and destruction
+
+An actual LocalBinder from the app's MonitorService is supplied to the
+framework's service-binding fixture. Database worker shutdown is awaited.
+This fixture does not emulate radio connections or active foreground
+monitoring. No physical phone, emulator, BMS or Victron device was connected.
+
+BEFORE (original 1.1.0 application classes):
+Tests run: 14, Failures: 12
+All 12 Activity launch cases fail at PhoneWindow.getInsetsController because
+mDecor is null. Both idle-service cases pass.
+
+AFTER (signed 1.1.1 release application classes and packaged resources):
+OK (14 tests)
+
+Fix: create and attach the content view before obtaining its window inset
+controller. Apply system-bar appearance via a posted view callback and
+skip the callback if the Activity has been destroyed.
+
+186 protocol/feature/host SQLite checks also passed for this source.
+JUnit test source: app/src/test/java/com/simon/offlinebms/LaunchTest.java
+Gradle command: ./gradlew :app:testDebugUnitTest
+The executed run used SDK-compiled release classes with the same JUnit
+source and dependencies; Gradle itself was not the runtime-test launcher.
+
+Tested APK SHA-256: 78b9a4c4d5f45100abf18b343e9f83f565aa2dac81254b1547e4cbb31e80ad6b

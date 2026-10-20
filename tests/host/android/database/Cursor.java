@@ -1,0 +1,3 @@
+package android.database;
+import java.util.*;
+public final class Cursor implements AutoCloseable{private final List<Object[]> rows;private int index=-1;public Cursor(List<Object[]> rows){this.rows=rows;}public boolean moveToFirst(){index=0;return index<rows.size();}public boolean moveToNext(){return ++index<rows.size();}public String getString(int n){Object v=rows.get(index)[n];return v==null?null:v.toString();}public double getDouble(int n){return ((Number)rows.get(index)[n]).doubleValue();}public long getLong(int n){return ((Number)rows.get(index)[n]).longValue();}public int getInt(int n){return ((Number)rows.get(index)[n]).intValue();}public boolean isNull(int n){return rows.get(index)[n]==null;}public void close(){}}

@@ -1,0 +1,26 @@
+OFFLINE BMS 1.2.1 — EXECUTED VALIDATION
+
+46 JBD telemetry + 37 authentication + 66 offline features/JK/Victron
++ 65 JBD parameter/failure-path checks + 37 host SQLite checks
++ 24 Android runtime cases = 275 successful.
+
+Robolectric 4.14.1 / JDK 17 / native resources and graphics: API 31 and 35.
+20 Activity/service/parameter cases, plus 4 framework archive parsing and
+certificate-extraction cases for the new APK and known working 1.1.1 APK.
+OK (24 tests)
+
+Archive parsing uses Android PackageParser. Certificate extraction uses
+its skip-digest option because Android's mmap verifier depends on an
+Android-only DirectByteBuffer constructor unavailable on the host JDK.
+Actual cryptographic signatures independently pass official SDK apksigner
+verification at API 23/24/28/31/35/36. No v4 companion is required or produced.
+
+The 1.2.0 delivered APK matches the build bytes exactly and its pack copy.
+It also passed Android framework metadata parsing. The reported phone-side
+installation error was not reproduced; the exact cause is unconfirmed.
+1.2.1 provides a clean rebuild/new filename and an installation-only ZIP to
+allow extraction and installation through Samsung My Files.
+
+No physical phone installation or BMS parameter write result is claimed.
+
+APK SHA256: 9e69579487114744146b9b8abd835b3841cd7f2894467e5ac370f64fbf01e0ac

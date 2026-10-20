@@ -1,0 +1,1 @@
+PASS: 40 storage, upgrade, backup and report checks on host SQLite (Android lifecycle not simulated)

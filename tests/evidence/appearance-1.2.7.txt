@@ -1,0 +1,48 @@
+OFFLINE BMS 1.2.7 / VERSION CODE 12 - APPEARANCE AND NAVIGATION
+
+Request: refine the appearance and correct off-centre bottom tabs after the
+user confirmed that the 1.2.6 JK connection and decoding worked on hardware.
+
+Cause and correction
+The navigation icon was centred in its column, but the full-width TextView
+kept its default left-aligned text. Labels now explicitly centre text, use
+bounded single-line layouts without horizontal scrolling, and share equal
+column widths with consistent icons. The Cells icon is also symmetrical.
+Selected tabs have a soft accent background, accessible selected state and
+native press feedback. Equipment maps to Batteries; Parameters maps to Tools.
+Existing window inset handling is retained.
+
+Appearance
+Refined dark and light colours, thin card borders, restrained secondary
+buttons, clearer typography, a slimmer charge gauge and clearer capacity
+labels. Saved battery cards precede the Victron equipment action. Cards
+indicate Saved, Connecting or Connected; the live card opens the existing
+dashboard connection. In-place state refresh preserves the list scroll.
+
+Validation
+587 checks/cases passed:
+46 JBD telemetry, 37 authentication, 66 features/JK/Victron, 65 parameter
+transactions, 56 Victron charger/address, 91 wider Victron formats, 40 JK
+diagnostics/absent sensors, 88 captured JK replay/validation, 40 host SQLite
+storage/export/backup, and 58 Android runtime cases.
+
+Native Android runtime cases run on API 31 and 35 with Robolectric 4.14.1.
+New navigation checks cover dark/light themes, 360/393/412 dp widths, all
+seven page-to-tab mappings and 1.3x font scale. They measure equal tab widths,
+matching icon and rendered text centres, minimum touch height, no label
+clipping/ellipsis and one selected tab. Live-card cases cover disabled
+Connecting actions, Connected badges, returning to Connect after stop, and
+opening the dashboard without replacing the BluetoothGatt handle.
+Native dashboard and Batteries previews in dark/light themes were inspected.
+
+Scope
+The production changes are visual/navigation and live-card presentation.
+No Bluetooth decoder, parameter-write or monitoring behaviour is changed;
+MonitorService only has its displayed app version updated. The captured JK
+regressions from 1.2.6 still pass. No new physical-phone result is claimed.
+The existing package and signing certificate are retained, version code
+increases to 12, and the same six permissions remain without INTERNET.
+Final APK/archive/signature verification is recorded by package-release.py
+in release-package/VERIFICATION.txt and in the release download package.
+
+Logs: runtime-1.2.7.log, protocol-1.2.7.txt and storage-1.2.7.txt.

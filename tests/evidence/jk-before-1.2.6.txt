@@ -1,0 +1,6 @@
+JK02_24S: Pack voltage outside supported range: 0.0 V
+JK02_32S: MOS temperature outside supported range: -200.0 C
+Auto: JK02_24S: Pack voltage outside supported range: 0.0 V; JK02_32S: MOS temperature outside supported range: -200.0 C
+JK02_24S: Pack voltage outside supported range: 0.0 V
+JK02_32S: MOS temperature outside supported range: -200.0 C
+Auto: JK02_24S: Pack voltage outside supported range: 0.0 V; JK02_32S: MOS temperature outside supported range: -200.0 C

@@ -1,0 +1,28 @@
+JUnit version 4.13.2
+...E.E...E.E
+Time: 16.9
+There were 4 failures:
+1) publishesActiveAttemptBeforeConnectingCallback[31](com.simon.offlinebms.ConnectionLifecycleTest)
+java.lang.AssertionError: A connection attempt must already be active during the connecting callback
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.simon.offlinebms.ConnectionLifecycleTest.publishesActiveAttemptBeforeConnectingCallback(ConnectionLifecycleTest.java:54)
+2) publishesActiveAttemptBeforeConnectingCallback(com.simon.offlinebms.ConnectionLifecycleTest)
+java.lang.AssertionError: A connection attempt must already be active during the connecting callback
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.simon.offlinebms.ConnectionLifecycleTest.publishesActiveAttemptBeforeConnectingCallback(ConnectionLifecycleTest.java:54)
+3) startupKeepsMonitoringAndAcceptsFullReading[31](com.simon.offlinebms.ConnectionLifecycleTest)
+java.lang.AssertionError: Connecting must not stop the monitoring service
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.simon.offlinebms.ConnectionLifecycleTest.startupKeepsMonitoringAndAcceptsFullReading(ConnectionLifecycleTest.java:60)
+4) startupKeepsMonitoringAndAcceptsFullReading(com.simon.offlinebms.ConnectionLifecycleTest)
+java.lang.AssertionError: Connecting must not stop the monitoring service
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.simon.offlinebms.ConnectionLifecycleTest.startupKeepsMonitoringAndAcceptsFullReading(ConnectionLifecycleTest.java:60)
+
+FAILURES!!!
+Tests run: 8,  Failures: 4
+

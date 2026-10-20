@@ -1,0 +1,13 @@
+.gradle/
+build/
+app/build/
+local.properties
+private-signing/
+*.apk
+*.idsig
+
+# The public, already-signed release is deliberately tracked.
+!downloads/Offline-BMS.apk
+*.jks
+*.keystore
+.env

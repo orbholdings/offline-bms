@@ -1,0 +1,48 @@
+Offline BMS 1.2.0 verification evidence
+Date: 2026-10-13
+
+Executed for the release source:
+46 JBD telemetry checks
+37 JBD authentication checks
+66 energy/alerts/JK/Victron checks
+65 JBD parameter/transaction/failure-path checks
+37 host SQLite/storage/upgrade/backup/report checks
+20 Android runtime test cases
+Total: 271 successful checks/test cases
+
+Android: JDK 17, Robolectric 4.14.1, JUnit 4.13.2; API 31 and API 35.
+Native resources/graphics enabled. Ten cases run on each SDK:
+- Dark, light, system and retained-battery launches (four cases)
+- All pages, Parameters page and demo/cell rendering
+- Theme recreation with saved battery retention
+- Idle monitoring-service creation/destruction
+- Saved parameter references locked against offline writes, in both themes
+- Edit/review/cancel flow without starting a hardware write
+- Durable pre-write preference snapshot and JSON serialization
+
+Result: OK (20 tests)
+
+The executed runtime launcher used SDK-compiled release application classes,
+the packaged APK resources and the supplied LaunchTest JUnit source. The
+service-binding fixture supplies the actual app LocalBinder. Gradle was not
+the runtime-test launcher; the source includes Gradle unit-test configuration.
+
+The 65 pure-Java parameter tests use independent known wire vectors and a
+simulated BMS. They cover signed current, Kelvin/voltage/capacity encodings,
+precision and relationship checks, unknown function-bit preservation,
+fragmented/checksummed responses, unavailable fields and mismatching layouts,
+durable-backup failure, stale/different-battery reviews, rejected commands,
+lost write replies, duplicate acknowledgements and post-commit mismatch.
+Writes are never automatically retried and failures do not claim rollback.
+
+No physical device, radio connection, active foreground monitoring or hardware
+Keystore was simulated by the Android tests. The user confirmed that version
+1.1.1 works. This new parameter-write path still needs a physical BMS test.
+The editor requires a matching classic JBD layout and explicit per-value
+review. Its JBD commit command also resets BMS protection counters; original
+parameters and counters are saved locally before a write.
+
+All main Java/resources compiled with JDK 17 / Android SDK 35 and D8.
+Final certificate/permissions/alignment checks are in the pack VERIFICATION.
+
+Tested APK SHA-256: 7eaa9f51ca44026bbdcab676a7d0533b1c313f9fad71c00a7ab8e62f85bc4ec4

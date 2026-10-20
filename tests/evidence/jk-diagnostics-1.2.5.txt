@@ -1,0 +1,49 @@
+Offline BMS 1.2.5 verification
+
+Trigger: a checksum-valid JK telemetry stream was rejected by 1.2.4, but the
+export made after reopening showed an idle service and no connection log.
+The supplied history JSON contained no JK telemetry. No specific device
+layout or hardware generation can be inferred from that empty export.
+
+Changes:
+- Retain one bounded private last-attempt snapshot outside the service.
+- Capture attempt time, protocol, model/firmware and frame counts.
+- Preserve detailed failure reasons for both JK02 layout candidates.
+- Keep at most first/last rejected checksum-valid type-0x02 status frames.
+  Never retain raw identity/settings frames or authentication wire packets.
+- Export current/saved diagnostics before opening Android's picker.
+- Add Overview > This connection > Export connection diagnostics.
+- Honour explicitly absent MOS/T1/T2 sensor bits, preserve real labels and
+  omit missing sentinel readings. Present sensor and pack checks remain.
+- Keep previous JBD and 13-format Victron changes.
+
+Validation:
+46 JBD telemetry, 37 authentication, 66 feature/JK/Victron, 65 parameter,
+56 AC charger/address, 91 wider Victron, 40 new JK diagnostics/absent-sensor
+checks, 40 real SQLite storage/backup/export checks, 50 Android runtime
+cases = 491 successful checks/cases.
+
+New Android tests run on API 31 and 35 with Robolectric 4.14.1. They inject
+40 rejected measurement frames plus separate identity/settings frames with
+dummy credentials, terminate the real client by its read timeout, destroy
+and recreate the service, and verify retained failure/model/telemetry and
+credential omission. They also test the store's text bound, idle-service
+retention, TXT picker export from Overview/Tools with and without a bound
+service, sensor label JSON round trips and rendered T2 rather than MOS.
+
+The independent measurement vectors test both layouts, four-cell signed
+telemetry, all/partial missing sensors, negative real temperatures, correct
+labels, malformed temperatures, pack/current/capacity/SOC and cell checks.
+
+Official Android SDK 35/build tools 35 compilation, D8 and the final package
+integrity/signature checks are run by tools/package-release.py. The original
+release key is retained; versionCode advances from 9 to 10. No new permissions.
+
+Interoperability reference checked against the maintainer implementation:
+https://github.com/syssi/esphome-jk-bms/blob/main/components/jk_bms_ble/jk_bms_ble.cpp
+Absent-temperature mask: byte 182 (JK02_24S), byte 214 (JK02_32S),
+bits 0=MOS, 1=T1, 2=T2. Measurement offsets retain the published layouts.
+
+Limits: no physical JK/Victron hardware test or confirmed device-specific
+fix is claimed. JK04 is not decoded. The next failed connection's TXT report
+is required if the absent-sensor correction does not resolve this device.

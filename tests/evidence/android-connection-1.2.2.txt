@@ -1,0 +1,27 @@
+OFFLINE BMS 1.2.2 - EXECUTED VALIDATION
+
+46 JBD telemetry + 37 authentication + 66 offline features/JK/Victron
++ 65 JBD parameter/transaction + 37 host SQLite/storage/backup/report
++ 32 Android runtime cases = 283 successful checks.
+
+Android runtime: Robolectric 4.14.1, JDK 17, API 31 and 35.
+8 connection lifecycle cases + 20 Activity/service/parameter cases
++ 4 archive/certificate metadata cases. OK (32 tests).
+
+The old code failed four of eight connection lifecycle cases: startup state
+and keeping monitoring active each failed on API 31 and API 35. The four
+failure/explicit-stop controls already passed. This reproduces the service
+marking monitoring false before connectGatt has returned its handle.
+The fixed code passes all eight and accepts a complete battery reading.
+See connection-before-1.2.2.txt and connection-after-1.2.2.txt.
+
+The Bluetooth transport and full reading are simulated in these regression
+checks; no real radio, physical phone or battery connection result is claimed.
+Archive metadata/certificate extraction and independent SDK apksigner
+cryptographic verification are separate checks.
+
+APK SHA-256:
+89e7da5a7bec2cd20cd675596aa5d3c1b488c9f961ba4b8911bcda98a081e8e7
+
+Build: official SDK 35 / JDK 17, min API 31, target API 35.
+Original signing certificate retained; six existing permissions, no INTERNET.

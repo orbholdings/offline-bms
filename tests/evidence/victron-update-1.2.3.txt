@@ -1,0 +1,25 @@
+OFFLINE BMS 1.2.3 - EXECUTED VALIDATION
+
+46 JBD telemetry + 37 authentication + 66 offline features/JK/Victron
++ 65 JBD parameter/transaction + 56 AC charger/address + 37 host SQLite
++ 34 Android runtime cases = 341 successful checks.
+
+AC charger reference: Victron Extra Manufacturer Data, AC Charger table,
+and Victron staff's 7 January 2025 layout clarification. Synthetic independent
+packed/encrypted fixture; three outputs, missing sentinels, limits, all
+truncated lengths, future trailing bytes, MAC normalization and rejection.
+The user supplied no raw encrypted charger packets for this update.
+
+Android: Robolectric 4.14.1, JDK 17, API 31 and 35. Existing JBD startup,
+complete-reading acceptance, failure cleanup and explicit-stop checks pass.
+The new setup-form test passes twice: compact addresses pass validation,
+while invalid MACs and keys receive errors on their own fields. The remaining
+launch/theme/parameter/metadata cases pass. See android-runtime-1.2.3.log.
+
+The final APK is built with official SDK 35 tools, D8 and the original key.
+Archive integrity, DEX digests, resources, alignment and embedded signatures
+are checked; the certificate is compared with 1.2.2. No new permissions.
+These tests simulate BLE/charger measurements. Physical Victron readings
+still need comparison with the charger/VictronConnect.
+
+APK SHA-256: 73399c8c3d75d2ce90d314a3cbfdf3f86558eda5c1a4c0e58bc160fb661f628c

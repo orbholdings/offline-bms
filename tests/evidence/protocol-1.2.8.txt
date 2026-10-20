@@ -1,0 +1,9 @@
+PASS: 46 protocol checks
+PASS: 37 authentication checks
+PASS: 66 offline feature, JK and Victron checks
+PASS: 65 JBD parameter, transaction and failure-path checks
+PASS: 56 Victron AC charger and address checks
+PASS: 91 extended Victron format checks
+PASS: 40 JK diagnostics and absent-sensor checks
+PASS: 88 captured JK32 replay and validation checks
+PASS: 30 balancing wire-vector, layout and bit-preservation checks

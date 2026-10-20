@@ -1,0 +1,58 @@
+Offline BMS 1.2.6 - captured JK replay verification
+
+The supplied 1.2.5 diagnostic identified JK_B2A8S20P, firmware 11.55,
+a JK02_24S profile, 42 checksum-valid cell frames and no accepted readings.
+Both retained 300-byte type-0x02 measurements are original status captures.
+Only those measurement bytes are retained as fixtures; identifying report
+headers, Bluetooth addresses, raw identity/settings packets are excluded.
+
+1.2.5 replay before the fix, for both captures:
+JK02_24S: Pack voltage outside supported range: 0.0 V
+JK02_32S: MOS temperature outside supported range: -200.0 C
+Auto: rejects both for the respective reasons above.
+
+1.2.6:
+- Exact raw signed temperature 0xF830 (-200 C) is treated as unavailable even
+  with the low absent-mask bits clear. No value is invented for that channel.
+- All other temperature and pack/cell/SOC/current/capacity/FET checks remain.
+- A wrong explicit variant suggests another only if it passes every check.
+  Explicit profiles stay strict and the stored selection is not overwritten.
+- The failure status names the correct format rather than mentioning JK04.
+- Connection/profile forms explain format names versus physical cell count.
+
+Both captured packets decode with Auto and JK02_32S:
+Cells: 4, [3.285, 3.281, 3.285, 3.284] V
+Pack voltage: 13.134 V (independent cell sum 13.135 V)
+Current: 0 A
+State of charge: 89%
+Nominal capacity: 280 Ah
+Remaining capacity: 248.965 Ah (first), 248.964 Ah (last)
+Cycles: 4
+Charging/discharging MOSFETs: enabled/enabled
+Alarm flags: 0
+Temperature readings: unavailable, not -200 C or invented zeroes
+
+Validation totals:
+46 JBD telemetry + 37 authentication + 66 feature/JK/Victron
++ 65 parameter/transaction + 56 charger/address + 91 wider Victron
++ 40 JK diagnostics/absent-sensor + 88 captured JK replay/validation
++ 40 SQLite storage/backup/export + 54 Android runtime = 583 passed.
+
+The added pure tests replay both originals with 128/22/128/22-byte chunking,
+verify checksums/values and wrong-profile hints, retain real negative sensor
+temperatures, and reject adjacent non-marker temperatures and bad core data.
+
+Robolectric 4.14.1 runs the actual client/service/dashboard on API 31 and 35,
+replaying both packets with the original fragmentation in Auto and JK02_32S.
+The dashboard renders 13.13 V/89% with unavailable temperatures; readings
+round-trip through JSON. A wrong 24S profile shows the specific 32S choice.
+A later stream timeout after valid data is not called a format mismatch.
+All existing lifecycle, data, Victron and parameter regressions also pass.
+
+Official SDK 35/build tools 35 compilation and D8 succeed. Final archive,
+DEX digest, resource alignment and embedded signature checks are run by
+tools/package-release.py. Version code 11; original signing key retained.
+No new permissions, dependencies or automatic hardware writes.
+
+Limits: captured-data replay is verified. A new physical Bluetooth session
+still needs confirmation after selecting JK02_32S or Auto in Connect.

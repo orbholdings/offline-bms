@@ -1,0 +1,33 @@
+OFFLINE BMS 1.2.4 - EXECUTED VALIDATION
+
+46 JBD telemetry + 37 authentication + 66 offline feature/JK/Victron
++ 65 parameter/transaction + 56 AC charger/address + 91 wider Victron
++ 40 SQLite/storage/export/backup + 42 Android runtime = 443 passed.
+
+New formats: SmartLithium 0x05, Smart BatteryProtect 0x09, Orion XS 0x0F.
+Fixed independently packed and encrypted synthetic vectors, clipped and
+unavailable cell values, all truncated lengths, signed quantities, trailing
+extensions and named support across 13 stable formats. GX 0x07 remains
+provisional and unsupported; unassigned 0x0E is not guessed.
+
+Android: Robolectric 4.14.1, API 31/35 with native UI rendering. Overview
+cards are below battery content, show live/stale/saved status and details,
+and retain management access. Dark/light native renders visually inspected.
+Stopping Victron does not close a running BMS link. JK tests cover a combined
+notify/write channel, a dedicated FFE2 transmit channel, non-duplicated
+subscriptions, a read-only alternate-channel fallback and a fragmented
+4-cell 280 Ah / 90% frame reaching the Activity. Both old and new Android
+notification callbacks are tested. The original JBD lifecycle checks pass.
+
+The JPEGs alone do not identify the user's JK hardware/firmware generation
+or prove the cause of its timeout. Its reported RSSI is -102 dBm. Keep the
+phone close and close other BMS apps. JK04 is still not decoded. New physical
+JK/Victron connections and parameter writes are not claimed. Device packets
+and Bluetooth are simulated. New diagnostics log frame counts and decode
+errors, not raw identity packets or passwords.
+
+Original signing key retained, version code 9, six unchanged permissions,
+no INTERNET permission. Final archive/DEX/resource/signature verification
+and certificate comparison with 1.2.3 are performed by package-release.py.
+
+APK SHA-256: 13ed0e1a9417400808916ead89dcbbde52a02fcacae3f19cbf3b08aa10b96f5b

@@ -1,0 +1,82 @@
+OFFLINE BMS 1.2.8 / VERSION CODE 13 - BATTERY SWITCHING AND BALANCING
+
+Requested changes
+Previous/next battery arrows at the top, plus a balancing button. This update
+retains the 1.2.7 appearance and the working 1.2.6 captured-JK decoder.
+
+Battery switching
+The fixed header on Overview, Cells and History has 48 dp previous/next
+buttons, the selected battery name, position and Live/Connecting/Saved state.
+The name opens a direct picker. The list wraps in saved-name order, excludes
+Victron equipment and retains the current page. No/one-profile states and
+long names are handled. Saved encrypted JBD passwords are reused; Connect
+offers an explicit remember-password option. Per-battery protocols are kept.
+
+Connection startup is shared with the existing Connect form. Each selection
+clears the previous reading/model, stores the selection and requests the
+new connection. The service closes the old GATT connection and saves its
+measured session before starting a new one. Cached data is selected-address
+scoped, labelled Saved and cannot overwrite a newer reading. History requests
+also retain their address/screen guards. The service rejects mismatched-address
+readings and existing GATT guards reject old Bluetooth callbacks. Victron
+broadcast scanning is not stopped by a BMS connection change.
+
+Balancing
+Overview's Battery status section and Cells have a Balance control. Only a
+live selected battery can use it. Enabled is separate from actively balancing.
+Demo/saved readings cannot send control commands. Current settings are read
+before a change is reviewed. Existing voltage/difference limits are retained.
+
+JK02: valid recent 24S/32S telemetry is required. Only a checksum-valid type-1
+settings frame with matching cell count/capacity, boolean switches and supported
+threshold encodings supplies the current setting. Request 0x96 reads settings.
+The only write is holding register 0x1F, length 4, little-endian 0/1. It is sent
+once after explicit review. After 400 ms a settings read verifies the result.
+Pre-verification frames do not confirm a write. Missing/refused readback clears
+the trusted setting and reports uncertainty, with no automatic write retry.
+Disconnection invalidates the setting and any captured review object. Repeated
+identical polls on the same connection retain the reviewed setting object.
+No charging/discharging switches or balance thresholds are written.
+
+Classic JBD: the shortcut uses the existing read/review/backup/write/commit/
+verification transaction for balance_enabled at 0x2D bit 2. All other bits
+are preserved. Its existing layout, snapshot, password and age checks remain.
+The existing review explains that the JBD commit resets protection counters;
+pre-write counters remain in the saved snapshot. No force-balance/test opcode
+or extended/unknown JBD layout is enabled. JK04 is not supported.
+
+Switching through arrows/Connect waits during control/parameter operations.
+The service independently rejects competing connection requests. Explicit
+stopping/disconnection can interrupt a control; its outcome stays unconfirmed.
+Settings/identity raw packets and passwords are not added to diagnostics.
+
+Primary protocol references (accessed for this implementation)
+https://github.com/syssi/esphome-jk-bms/blob/main/docs/protocol-design-ble.md
+https://github.com/syssi/esphome-jk-bms/blob/main/components/jk_bms_ble/switch/__init__.py
+https://github.com/syssi/esphome-jk-bms/blob/main/components/jk_bms_ble/switch/jk_switch.cpp
+https://github.com/syssi/esphome-jk-bms/blob/main/components/jk_bms_ble/jk_bms_ble.cpp
+https://gitlab.com/Overkill-Solar-LLC/overkill-solar-bms-tools/-/blob/master/JBD_REGISTER_MAP.md
+
+Validation
+629 checks/cases passed: 46 JBD telemetry + 37 authentication + 66 features/
+JK/Victron + 65 parameter transaction/failure paths + 56 Victron charger/address
++ 91 wider Victron + 40 JK diagnostics/absent sensors + 88 captured JK replay
++ 30 balancing wire-vector/layout/bit-preservation + 40 host SQLite storage/
+upgrade/export/backup + 70 native Android runtime cases on API 31 and 35.
+
+New Android cases cover forward/back/wrap, direct picking, saved-profile
+filtering, rapid taps, page retention, reading removal, old callbacks, busy
+operation gates, 360/393/412 dp widths, 1.3x text and the original centred nav.
+JK control cases cover initial read, explicit review, cancel, correct single
+write vector, verification read, early frames, success, mismatch, corrupt
+settings, timeout, interruption and separate Enabled/Idle labels. The JBD
+shortcut is checked against its reviewed bit-preserving parameter transaction.
+Existing captured-JK, lifecycle, data, privacy and Victron regressions pass.
+Native dark/light Overview and Cells previews were visually inspected.
+
+Logs: protocol-1.2.8.txt, storage-1.2.8.txt and runtime-1.2.8.log.
+Final archive, DEX, resource alignment, SDK signature checks and certificate
+continuity are recorded by package-release.py in the release verification.
+Package ID/signing key and all six permissions are retained; no INTERNET.
+No new physical balancing command or hardware result is claimed. Host tests
+simulate Bluetooth and need user hardware verification of this new control.
