@@ -1,4 +1,4 @@
-# Offline BMS 1.2.8
+# Offline BMS 1.2.9
 
 A native Android dashboard for JBD / Xiaoxiang and common JK02 Bluetooth battery monitors, with a separate Victron Instant Readout equipment view. Android 12 and newer; no runtime third-party libraries, internet permission, account, advertising or analytics.
 
@@ -7,6 +7,16 @@ A native Android dashboard for JBD / Xiaoxiang and common JK02 Bluetooth battery
 Install `Offline-BMS-1.2.8.apk` over the current installation. Keep the existing app installed: the package ID (`com.simon.offlinebms`) and release signing certificate are unchanged. Saved history, preferences and encrypted passwords are retained. Existing version-1 history databases are upgraded to identify batteries by their Bluetooth address rather than their changeable display name.
 
 Open **Batteries**, connect a saved battery or scan, enter its JBD password if needed, and connect. **Auto** detects JBD and supported JK02 layouts. You can choose a JK variant explicitly on Connect or in Edit profile.
+
+### Automatic reconnect in 1.2.9
+
+**Tools → Monitoring & recording → Reconnect automatically when back in range** is enabled by default. Connect a battery once, then leave monitoring running. If the link drops, the app keeps its monitoring notification, shows **Waiting for battery**, and asks Android to connect when that same battery becomes available. Fresh readings and local recording resume after the connection and telemetry are verified. The app does not cycle through other batteries.
+
+Keep **Continue monitoring with the screen off** enabled to reconnect while the app is in the background. Bluetooth being turned off pauses the connection; turning it on resumes waiting. While waiting for the battery, the BMS connection releases its CPU wake lock. Android power management can still stop an app; opening Offline BMS resumes the last requested battery using its saved encrypted password, if needed. An unsaved password is kept only for the current monitoring session.
+
+**Stop monitoring** in Batteries or the notification cancels pending reconnects and prevents automatic resume on the next opening. Scanning or entering the demo also stops that battery's monitoring. Turning automatic reconnect off leaves connection control manual. With screen-off monitoring disabled, leaving the app pauses it and opening it resumes the last requested battery.
+
+Saved readings keep their timestamp and **SAVED** label until a fresh reading arrives. Connection gaps start a new energy/session interval; time out of range is not treated as measured energy. A reconnect repeats telemetry setup only. Settings and balancing writes are never replayed. Unsupported protocols, rejected authentication and invalid layouts stop the attempt for correction rather than retrying indefinitely.
 
 ### Quick battery switching and balancing in 1.2.8
 
@@ -176,15 +186,17 @@ Victron reads manufacturer advertisements using the owner-supplied key, not an a
 | BLUETOOTH_CONNECT | Connect to the selected BMS. |
 | POST_NOTIFICATIONS | Local battery alerts and the monitoring notification. |
 | FOREGROUND_SERVICE / FOREGROUND_SERVICE_CONNECTED_DEVICE | Keep user-started Bluetooth monitoring running outside the Activity. |
-| WAKE_LOCK | A renewable, bounded partial wake lock during active monitoring; released on stop, disconnection and service destruction. |
+| WAKE_LOCK | A renewable, bounded partial wake lock during active monitoring; released while waiting for a BMS to return, on stop and on service destruction. Victron receiving may independently retain it. |
 
 There is **no INTERNET, location or broad storage permission**. Android system backup/transfer is disabled. Optional passwords and Victron keys use a non-exportable Android Keystore AES-GCM key, random IVs and address-bound authenticated data. Credentials and encoded login packets are never logged.
 
-Monitoring consumes phone battery; stop it from the notification or Batteries/Equipment when finished. It does not restart automatically after a reboot or process death. Android power management and Bluetooth range can still interrupt it. Alerts require an active connection/receiver and Android notification permission. They supplement the BMS's own protections.
+Monitoring consumes phone battery; stop it from the notification or Batteries/Equipment when finished. It does not start itself after a reboot or process death; open the app to resume the last requested BMS unless monitoring was explicitly stopped. Android power management and Bluetooth range can still interrupt it. Alerts require an active connection/receiver and Android notification permission. They supplement the BMS's own protections.
 
 To keep exported files offline, choose local phone storage in Android's file picker. Selecting a cloud provider can upload that file using the provider's own app.
 
 ## Validation
+
+Version 1.2.9 passed **655 checks/cases**: 519 protocol/control, 40 host SQLite/storage and 96 Android runtime cases on API 31/35. Reconnect lifecycle and waiting-state UI tests use simulated Bluetooth. Dark/light previews were visually inspected. See [reconnect validation](../tests/evidence/auto-reconnect-1.2.9.txt) and the [runtime result](../tests/evidence/runtime-1.2.9.log). Physical return-to-range behaviour still needs confirmation.
 
 - 46 JBD telemetry, 37 authentication, 66 offline feature/JK/Victron and 65 JBD parameter/transaction checks.
 - 56 AC charger/address checks and 91 wider Victron format checks, including independent encrypted vectors, missing and clipped cells, signed fields, all short lengths and trailing extensions.

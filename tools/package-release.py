@@ -17,7 +17,7 @@ def main():
     assert old_cert==new_cert,'Signing certificate differs from the installed app'
     permissions=subprocess.run([str(tools/'aapt'),'dump','permissions',str(apk)],check=True,capture_output=True,text=True).stdout
     badging=subprocess.run([str(tools/'aapt'),'dump','badging',str(apk)],check=True,capture_output=True,text=True).stdout
-    assert "package: name='com.simon.offlinebms'" in badging and "versionCode='13'" in badging and "versionName='1.2.8'" in badging
+    assert "package: name='com.simon.offlinebms'" in badging and "versionCode='14'" in badging and "versionName='1.2.9'" in badging
     expected={'android.permission.BLUETOOTH_SCAN','android.permission.BLUETOOTH_CONNECT','android.permission.POST_NOTIFICATIONS','android.permission.FOREGROUND_SERVICE','android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE','android.permission.WAKE_LOCK'}
     assert set(re.findall(r"uses-permission: name='([^']+)'",permissions))==expected
     subprocess.run(['python3',str(project/'tools/verify-apk.py'),'--apk',str(apk),'--build-tools',str(tools)],check=True)
@@ -30,61 +30,42 @@ def main():
             relative=path.relative_to(project)
             if any(part in ('build','.gradle','private-signing','__pycache__','.git') for part in relative.parts) or path.name=='local.properties':continue
             archive.write(path,'OfflineBMS/'+relative.as_posix())
-    instructions='''OFFLINE BMS 1.2.8 - QUICK BATTERY SWITCHING AND BALANCING
+    instructions='''OFFLINE BMS 1.2.9 - AUTOMATIC RECONNECT
 
-Install Offline-BMS-1.2.8.apk over the existing app. Choose Update; keep the
-existing installation to retain names, history and encrypted keys.
+Install the APK over the existing app to retain profiles, keys and history.
+Connect a battery and leave monitoring running. When out of range, the app
+shows Waiting for battery and reconnects when that battery returns.
+Tools > Monitoring & recording has the automatic-reconnect switch, enabled
+by default. Keep screen-off monitoring enabled to reconnect in background.
+Stop monitoring cancels reconnecting until you connect again. Opening the
+app resumes the last requested battery unless you stopped it. No service
+starts itself after a reboot. Saved readings keep their timestamp until
+fresh readings arrive; missing intervals are excluded from measured energy.
 
-Use the top arrows on Overview, Cells or History to switch and connect.
-Tap the battery name for a picker. Your page is kept and the list wraps.
-Victron equipment is separate and its broadcast monitoring continues.
-Saved encrypted passwords are reused; remember a JBD password on Connect
-when one is required. Only one BMS battery is live at a time.
-
-Balance is in Overview > Battery status and on Cells. It enables/disables
-automatic balancing using existing BMS limits; enabled and active differ.
-JK02 controls read the current state, review, write only the balancing
-switch and verify by readback. Missing/refused readback stays unconfirmed.
-Classic JBD uses the existing parameter read/review/backup/save/verify flow.
-JBD commit resets protection counters as described in the review; original
-values are backed up. Demo, saved data and unsupported layouts cannot write.
-No control write is automatically retried. Switching waits for operations.
-
-629 checks/cases pass, including 70 Android runtime cases on API 31/35,
-rapid switching, old callbacks, three phone widths, larger text and balance
-readback/failure/cancel paths. Hardware balancing still needs user testing.
-The working JK decoder and existing supported Victron formats are retained.
-Keep maintenance/ private; it contains the original signing-key backup.
+Reconnection repeats telemetry setup only, never control/settings writes.
+Existing quick switching, balancing controls and Victron support remain.
+Physical return-to-range behaviour still needs the user's confirmation.
+Keep maintenance/ private: it contains the original signing-key backup.
 '''
-    verification=f'''OFFLINE BMS 1.2.8 - VERIFICATION
+    verification=f'''OFFLINE BMS 1.2.9 - VERIFICATION
 
 Package: com.simon.offlinebms
-Version code: 13
+Version code: 14
 Minimum API: 31 (Android 12)
 Target/compile API: 35
 APK bytes: {apk.stat().st_size}
 APK SHA-256: {sha}
 
-46 JBD telemetry + 37 authentication + 66 offline feature/JK/Victron
-+ 65 parameter/transaction + 56 AC charger/address + 91 wider Victron
-+ 40 JK diagnostics/absent-sensor + 88 captured JK replay/validation
-+ 30 balancing wire-vector/layout/bit preservation + 40 SQLite/storage/export/backup
-+ 70 Android runtime = 629 passed.
+Protocol/control checks: 519. Host SQLite/storage checks: 40.
+Android runtime checks: see tests/evidence/runtime-1.2.9.log.
+The new checks cover loss of range, availability-based reconnection, fresh
+JK telemetry after reconnect, explicit stop, battery switching, Bluetooth
+off/on, permissions, unsupported services, app resume and cached readings.
+Hardware reconnection still needs confirmation on a phone and BMS.
 
-New Android UI/control cases verify top arrows, wrapping, direct selection,
-page retention, previous reading removal, rapid requests, old callbacks,
-operation locking and the original centred bottom tabs at 360/393/412 dp
-in dark/light themes with larger text. JK balancing reads, explicit review,
-single control write, readback, refusal, timeout, cancellation and disconnect
-are simulated. JBD uses its reviewed bit-preserving parameter transaction.
-Native phone previews were inspected. Existing captured JK, storage, privacy,
-lifecycle and Victron regressions pass. See battery-controls-1.2.8.txt and
-runtime-1.2.8.log under tests/evidence in the source archive.
-
-Official SDK compilation, D8, archive and DEX integrity, aligned resources,
-and embedded signatures pass. Signing certificate matches 1.2.7; version
-code increases to 13. Six existing permissions; no INTERNET permission.
-No new physical JK/Victron result or battery parameter write is claimed.
+Official SDK compilation, D8, archive/DEX integrity, aligned resources,
+and embedded signatures are verified. The certificate matches 1.2.8 and
+the version code increases to 14. Six existing permissions; no INTERNET.
 
 PERMISSIONS
 {permissions}

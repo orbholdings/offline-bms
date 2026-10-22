@@ -45,7 +45,7 @@ public final class BleClient {
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic tx;
     private BluetoothLeScanner scanner;
-    private boolean scanning,ready,transportReady,modelAttempted,connecting;
+    private boolean scanning,ready,transportReady,modelAttempted,connecting,waitForDevice,retryableFailure;
     private int pending=-1,retries,subscriptionIndex,rxCount;
     private String connectionPassword="",deviceAddress="";
     private JbdProtocol.Basic basic;
@@ -151,7 +151,7 @@ public final class BleClient {
     public void setPollSeconds(int seconds){pollDelay=Math.max(5,Math.min(30,seconds))*1000L;}
     public void refresh(){if(ready&&pending<0&&authentication==null&&!operationsBusy()){handler.removeCallbacks(poll);request(3);}}
     private final Runnable requestTimeout=this::timedOut;
-    private final Runnable connectionTimeout=()->fail("Connection timed out. Close other BMS apps and check the battery is awake.");
+    private final Runnable connectionTimeout=()->fail("Connection timed out. Close other BMS apps and check the battery is awake.",true);
     private final Runnable poll=()->request(3);
     private final Runnable stopScanTask=this::stopScan;
     public BleClient(Context context,Listener listener) { this.context=context.getApplicationContext();this.listener=listener; }
@@ -160,6 +160,8 @@ public final class BleClient {
     public boolean isReady() { return ready; }
     public boolean isScanning() { return scanning; }
     public boolean isConnectingOrConnected() { return connecting||gatt!=null; }
+    public boolean isWaitingForDevice() { return waitForDevice&&connecting; }
+    public boolean canRetryConnection() { return retryableFailure; }
     public void startScan() {
         stopScan();
         if(!hasPermission()) { listener.onState("Allow Nearby devices to scan.",false);return; }
@@ -203,7 +205,12 @@ public final class BleClient {
         connect(device,name,password,"Auto");
     }
     public void connect(BluetoothDevice device,String name,String password,String protocol) {
+        connect(device,name,password,protocol,false);
+    }
+    /** Background reconnect uses Android's availability-based GATT connection, without periodic scans. */
+    public void connect(BluetoothDevice device,String name,String password,String protocol,boolean waitForDevice) {
         stopScan();disconnect();
+        this.waitForDevice=waitForDevice;retryableFailure=false;
         this.protocol=protocol;jk=false;jkAssembler.reset();jkWriteChannels.clear();jkWriteChannel=0;jkWriteWithResponse=false;jkLastError="";jkDetectedVariant="";jkCellFrames=0;jkAcceptedFrames=0;jkFirstRejected=null;jkLastRejected=null;
         if(!hasPermission()){listener.onState("Allow Nearby devices to connect.",false);return;}
         try{JbdAuthentication.validatePassword(password);deviceAddress=device.getAddress();deviceName=name+" ["+deviceAddress+"]";}
@@ -213,12 +220,15 @@ public final class BleClient {
         // Publish the attempt before the callback: connectGatt has not returned a handle yet.
         // The monitoring service uses this state to distinguish progress from disconnection.
         connecting=true;
-        listener.onModel("");listener.onState("Connecting to "+name+"…",false);
+        listener.onModel("");listener.onState(waitForDevice?"Waiting for "+name+" · reconnecting automatically":"Connecting to "+name+"…",false);
         listener.onLog("Connecting to "+name);
-        try { gatt=device.connectGatt(context,false,gattCallback,BluetoothDevice.TRANSPORT_LE);if(gatt==null){fail("Android could not open the Bluetooth connection. Try Connect again.");return;}handler.postDelayed(connectionTimeout,18000); }
+        try { gatt=device.connectGatt(context,waitForDevice,gattCallback,BluetoothDevice.TRANSPORT_LE);if(gatt==null){fail("Android could not open the Bluetooth connection. Try Connect again.",true);return;}if(!waitForDevice)handler.postDelayed(connectionTimeout,18000); }
         catch(SecurityException|IllegalArgumentException e){fail("Could not start Bluetooth connection.");}
     }
     public void disconnect() {
+        retryableFailure=false;disconnect(true);
+    }
+    private void disconnect(boolean publishState) {
         boolean interruptedBalance=balanceBusy&&balanceWriteSent;balanceBusy=false;balanceWriteSent=false;balanceAwaiting=false;jkBalanceSettings=null;jkBalanceAt=0;lastReadingAt=0;balanceMessage=interruptedBalance?"Connection closed before the balancing change was confirmed. Read it again.":"Read the balancing setting from the battery";
         if(interruptedBalance){listener.onParameterEvent(balanceMessage);listener.onBalancing(balanceMessage);}
         if(parameterSession!=null){JbdSettingsSession oldSession=parameterSession;boolean started=parameterStarted;parameterSession=null;parameterStarted=false;parameters=null;parameterMessage=oldSession.interrupted().message;listener.onParameters(null,parameterMessage);if(oldSession.writeSent())listener.onParameterEvent(parameterMessage);
@@ -228,22 +238,23 @@ public final class BleClient {
         parameters=null;parameterAssembler.reset();
         handler.removeCallbacksAndMessages(null);
         handler.removeCallbacks(connectionTimeout);handler.removeCallbacks(requestTimeout);handler.removeCallbacks(poll);
-        connecting=false;ready=false;transportReady=false;pending=-1;tx=null;basic=null;assembler.reset();authAssembler.reset();authentication=null;jkWriteChannels.clear();
+        connecting=false;waitForDevice=false;ready=false;transportReady=false;pending=-1;tx=null;basic=null;assembler.reset();authAssembler.reset();authentication=null;jkWriteChannels.clear();
         connectionPassword="";subscriptions.clear();notifyUuids.clear();subscriptionIndex=0;
         BluetoothGatt old=gatt;gatt=null;
-        if(old!=null){try{old.disconnect();old.close();}catch(SecurityException ignored){}listener.onState("Disconnected · readings are no longer live",false);}
+        if(old!=null){try{old.disconnect();old.close();}catch(SecurityException ignored){}if(publishState)listener.onState("Disconnected · readings are no longer live",false);}
     }
-    private void fail(String status) { listener.onLog(status);disconnect();listener.onState(status,false); }
+    private void fail(String status) { fail(status,false); }
+    private void fail(String status,boolean retryable) { retryableFailure=retryable;listener.onLog(status);disconnect(false);listener.onState(status,false); }
     private final BluetoothGattCallback gattCallback=new BluetoothGattCallback() {
         @Override public void onConnectionStateChange(BluetoothGatt g,int status,int state) { handler.post(()->{
             if(g!=gatt)return;
-            if(status!=BluetoothGatt.GATT_SUCCESS){fail("Bluetooth connection failed ("+status+"). Another BMS app or Home Assistant may be connected.");return;}
-            if(state==BluetoothProfile.STATE_CONNECTED){connecting=false;listener.onState("Connected · checking JBD services…",false);try{if(!g.discoverServices())fail("Could not discover Bluetooth services.");}catch(SecurityException e){fail("Bluetooth permission was removed.");}}
-            else if(state==BluetoothProfile.STATE_DISCONNECTED)fail("Battery disconnected. Tap Connect to try again.");
+            if(status!=BluetoothGatt.GATT_SUCCESS){fail("Bluetooth connection failed ("+status+"). Another BMS app or Home Assistant may be connected.",true);return;}
+            if(state==BluetoothProfile.STATE_CONNECTED){connecting=false;waitForDevice=false;handler.removeCallbacks(connectionTimeout);handler.postDelayed(connectionTimeout,18000);listener.onState("Connected · checking battery services…",false);try{if(!g.discoverServices())fail("Could not discover Bluetooth services.",true);}catch(SecurityException e){fail("Bluetooth permission was removed.");}}
+            else if(state==BluetoothProfile.STATE_DISCONNECTED)fail("Battery disconnected. Tap Connect to try again.",true);
         }); }
         @Override public void onServicesDiscovered(BluetoothGatt g,int status) { handler.post(()->{
             if(g!=gatt)return;
-            if(status!=BluetoothGatt.GATT_SUCCESS){fail("Bluetooth service discovery failed.");return;}
+            if(status!=BluetoothGatt.GATT_SUCCESS){fail("Bluetooth service discovery failed.",true);return;}
             BluetoothGattService s=g.getService(SERVICE);BluetoothGattService jkService=g.getService(JK_SERVICE);
             if(protocol.startsWith("JK")||(s==null&&protocol.equals("Auto")&&jkService!=null)){s=jkService;jk=true;}
             if(s==null){StringBuilder services=new StringBuilder();for(BluetoothGattService sv:g.getServices())services.append(sv.getUuid()).append(' ');listener.onLog("Services: "+services);fail("This device does not expose the supported JBD Bluetooth service. Open Details for diagnostics.");return;}
@@ -271,11 +282,11 @@ public final class BleClient {
             BluetoothGattCharacteristic c=subscriptions.get(subscriptionIndex);
             if(!d.getCharacteristic().getUuid().equals(c.getUuid()))return;
             if(status==BluetoothGatt.GATT_SUCCESS){notifyUuids.add(c.getUuid());listener.onLog("Notifications enabled on "+c.getUuid());}
-            else{listener.onLog("Notification subscription failed on "+c.getUuid()+" ("+status+")");if(notifyUuids.isEmpty() && subscriptionIndex==subscriptions.size()-1){fail("BMS notification subscription failed.");return;}}
+            else{listener.onLog("Notification subscription failed on "+c.getUuid()+" ("+status+")");if(notifyUuids.isEmpty() && subscriptionIndex==subscriptions.size()-1){fail("BMS notification subscription failed.",true);return;}}
             subscriptionIndex++;handler.postDelayed(()->subscribeNext(),100);
         });}
         @Override public void onCharacteristicWrite(BluetoothGatt g,BluetoothGattCharacteristic c,int status){handler.post(()->{
-            if(g==gatt && status!=BluetoothGatt.GATT_SUCCESS)fail("Bluetooth request failed ("+status+").");
+            if(g==gatt && status!=BluetoothGatt.GATT_SUCCESS)fail("Bluetooth request failed ("+status+").",true);
         });}
         @Override public void onCharacteristicChanged(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] value){byte[] copy=value.clone();handler.post(()->received(g,c.getUuid(),copy));}
         @Override public void onCharacteristicChanged(BluetoothGatt g,BluetoothGattCharacteristic c){byte[] value=c.getValue();if(value!=null){byte[] copy=value.clone();handler.post(()->received(g,c.getUuid(),copy));}}
@@ -283,7 +294,7 @@ public final class BleClient {
     private void subscribeNext(){
         if(gatt==null)return;
         if(subscriptionIndex>=subscriptions.size()){
-            if(notifyUuids.isEmpty()){fail("Could not enable BMS notifications.");return;}
+            if(notifyUuids.isEmpty()){fail("Could not enable BMS notifications.",true);return;}
             handler.removeCallbacks(connectionTimeout);transportReady=true;
             if(jk){connectionPassword="";ready=true;listener.onState("JK connected · requesting readings",false);writePacket(JkProtocol.readCommand(0x97));handler.postDelayed(()->request(3),600);return;}
             authentication=new JbdAuthentication(deviceAddress,connectionPassword);connectionPassword="";
@@ -317,7 +328,7 @@ public final class BleClient {
             boolean ok;
             if(Build.VERSION.SDK_INT>=33)ok=gatt.writeCharacteristic(tx,command,type)==BluetoothStatusCodes.SUCCESS;
             else{tx.setWriteType(type);tx.setValue(command);ok=gatt.writeCharacteristic(tx);}
-            if(!ok)fail("Bluetooth request could not be sent. Reconnect the battery.");
+            if(!ok)fail("Bluetooth request could not be sent. Reconnect the battery.",true);
             return ok;
         }catch(SecurityException e){fail("Bluetooth permission was removed.");return false;}
     }
@@ -338,14 +349,14 @@ public final class BleClient {
                 jkWriteWithResponse=true;retries=0;listener.onLog("JK read-only fallback: acknowledged writes");
             }else if(++retries>2){
                 if(!jkDetectedVariant.isEmpty()&&!jkLastError.isEmpty()&&!protocol.equals("Auto"))fail("JK format mismatch: profile uses "+protocol+", but these readings use "+jkDetectedVariant+". Reconnect and choose "+jkDetectedVariant+" or Auto. These names describe the data format, not the cell count.");
-                else fail("No valid JK readings ("+rxCount+" packets, "+jkAssembler.rejected+" invalid frames). "+(jkLastError.isEmpty()?"Move close and close the other BMS app. ":"JK data arrived but its layout could not be decoded. ")+"Try Auto, then export connection diagnostics from Overview or Tools.");return;
+                else fail("No valid JK readings ("+rxCount+" packets, "+jkAssembler.rejected+" invalid frames). "+(jkLastError.isEmpty()?"Move close and close the other BMS app. ":"JK data arrived but its layout could not be decoded. ")+"Try Auto, then export connection diagnostics from Overview or Tools.",basic!=null||rxCount==0);return;
             }
             if(writePacket(JkProtocol.readCommand(0x96)))handler.postDelayed(requestTimeout,8000);return;
         }
         if(authentication!=null){authAssembler.reset();assembler.reset();applyAuthentication(authentication.timeout());return;}
         if(pending==5){pending=-1;listener.onLog("Optional model read timed out; continuing measurements");handler.postDelayed(poll,pollDelay);return;}
         if(++retries<=2){listener.onLog("Read timed out; retry "+retries);send();return;}
-        fail("Bluetooth connected, but no valid battery readings arrived. Check the password on Connect. Open App details and export connection diagnostics if it still fails. Received "+rxCount+" notification packet(s).");
+        fail("Bluetooth connected, but no valid battery readings arrived. Check the password on Connect. Open App details and export connection diagnostics if it still fails. Received "+rxCount+" notification packet(s).",basic!=null||rxCount==0);
     }
     private void received(BluetoothGatt g,UUID characteristic,byte[] value){
         if(g!=gatt || !transportReady || !notifyUuids.contains(characteristic))return;

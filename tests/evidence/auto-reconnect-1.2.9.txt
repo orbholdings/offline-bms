@@ -1,0 +1,32 @@
+OFFLINE BMS 1.2.9 — AUTOMATIC RECONNECT VALIDATION
+
+655 checks/cases passed: 519 protocol/control, 40 host SQLite/storage and
+96 Android runtime cases across API 31 (Android 12) and API 35 (Android 15).
+
+New lifecycle checks cover range loss, initial connection failure, one
+availability-based GATT request beyond the direct connection timeout,
+released BMS wake lock while waiting, Bluetooth off/on, revoked permission,
+stop during a queued/active reconnect, disabling automatic reconnect,
+switching targets and rejecting callbacks from the closed GATT, unsupported
+services, pause/resume intent and fresh JK telemetry after reconnection.
+A new session prevents integrating energy across the missing interval.
+
+UI cases cover automatic resume on opening (including existing profiles),
+explicit Stop and disabled preference, Saved readings while waiting,
+disabled balancing controls, reconnect status and the Tools switch.
+Dark/light waiting previews were visually checked. Existing phone-width,
+large-text, centred navigation, quick switching, parameter/balancing,
+captured JK, Victron, archive, storage and privacy regressions pass.
+
+The Bluetooth transport and responses are simulated. Robolectric 4.14.1's
+GATT shadow implements only the old descriptor-write overload; the reconnect
+tests supply the equivalent test-only API 33+ overload to deliver a normal
+subscription callback. Production code still uses the official SDK API.
+The CLI test runner records a completion result and rejects an incomplete
+run even when Java exits with status zero.
+
+Official SDK compilation and D8 completed. APK archive/DEX integrity,
+resource alignment and embedded signatures passed. Package, minimum/target
+SDK and the six permissions are retained. Version code increases to 14,
+and the certificate matches the existing release. No Internet permission.
+Physical return-to-range behaviour on a phone/BMS still needs confirmation.

@@ -20,13 +20,13 @@ def main():
     java=Path(os.environ['JAVA_HOME'])/'bin/java' if os.environ.get('JAVA_HOME') else Path('java')
     ns='http://schemas.android.com/apk/res/android';ET.register_namespace('android',ns)
     tree=ET.parse(project/'app/src/main/AndroidManifest.xml');root=tree.getroot()
-    root.set('package','com.simon.offlinebms');root.set('{'+ns+'}versionCode','13');root.set('{'+ns+'}versionName','1.2.8')
+    root.set('package','com.simon.offlinebms');root.set('{'+ns+'}versionCode','14');root.set('{'+ns+'}versionName','1.2.9')
     manifest=work/'AndroidManifest.xml';tree.write(manifest,encoding='utf-8',xml_declaration=True)
     resources=work/'resources.zip';unsigned=work/'unsigned.apk'
     for path in (resources,unsigned,work/'aligned.apk'):
         if path.exists():path.unlink()
     subprocess.run([str(tools/'aapt2'),'compile','--dir',str(project/'app/src/main/res'),'-o',str(resources)],check=True)
-    subprocess.run([str(tools/'aapt2'),'link','-I',str(android_jar),'--manifest',str(manifest),'--auto-add-overlay','-R',str(resources),'--java',str(gen),'--min-sdk-version','31','--target-sdk-version','35','--version-code','12','--version-name','1.2.8','-o',str(unsigned)],check=True)
+    subprocess.run([str(tools/'aapt2'),'link','-I',str(android_jar),'--manifest',str(manifest),'--auto-add-overlay','-R',str(resources),'--java',str(gen),'--min-sdk-version','31','--target-sdk-version','35','--version-code','14','--version-name','1.2.9','-o',str(unsigned)],check=True)
     sources=list((project/'app/src/main/java').rglob('*.java'))+list(gen.rglob('*.java'))
     subprocess.run([str(java),'-m','jdk.compiler/com.sun.tools.javac.Main','--release','11','-classpath',str(android_jar),'-d',str(classes)]+[str(p) for p in sources],check=True)
     subprocess.run([str(java),'-cp',str(tools/'lib/d8.jar'),'com.android.tools.r8.D8','--release','--lib',str(android_jar),'--min-api','31','--output',str(dex)]+[str(p) for p in classes.rglob('*.class')],check=True)

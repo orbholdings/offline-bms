@@ -10,7 +10,7 @@ No accounts, ads, analytics or cloud backend. The app has **no Internet permissi
 
 [Releases](https://github.com/orbholdings/offline-bms/releases/latest) · [Direct APK mirror](https://raw.githubusercontent.com/orbholdings/offline-bms/main/downloads/Offline-BMS.apk) · [Checksums](downloads/SHA256SUMS)
 
-**Version 1.2.8 · Android 12 or later.** Open the downloaded APK on your phone to install. If Android asks, allow installation from your browser/file manager. Install updates over the existing app to keep history, profiles and saved keys. The release retains the original package ID and signing certificate.
+**Version 1.2.9 · Android 12 or later.** Open the downloaded APK on your phone to install. If Android asks, allow installation from your browser/file manager. Install updates over the existing app to keep history, profiles and saved keys. The release retains the original package ID and signing certificate.
 
 ## Features
 
@@ -18,6 +18,7 @@ No accounts, ads, analytics or cloud backend. The app has **no Internet permissi
 - Cell charts, min/max/spread, balancing status and protection flags.
 - Top arrows to switch batteries from Overview, Cells or History; tap the name for a picker. One JBD/JK battery is live at a time.
 - A reviewed Balance button on Overview and Cells for supported JK02 and classic JBD devices, with readback confirmation and existing balancing limits.
+- Automatic reconnect when the last battery returns to Bluetooth range, with a waiting status and a Tools switch.
 - Local history, charts, measured energy, approximate runtime, profiles and alerts.
 - CSV/JSON exports, reports and backup/restore through Android's file picker.
 - Supported classic JBD parameter edits with original-value snapshots and verification.
@@ -41,9 +42,10 @@ Live JBD and JK operation was confirmed during development. **The new balancing 
 2. Open Batteries, scan and connect. Choose Auto or the supported protocol and enter a password if required.
 3. Give each battery a useful name. Remember its encrypted password on Connect for quick switching.
 4. Switch with the arrows or name picker. Saved readings remain labelled until live data arrives.
-5. For Victron, enable Instant Readout in VictronConnect and add its address/key under Victron equipment.
+5. Leave monitoring running to reconnect when back in range. Keep screen-off monitoring enabled for background reconnection; Stop monitoring cancels it.
+6. For Victron, enable Instant Readout in VictronConnect and add its address/key under Victron equipment.
 
-[Full user guide](docs/USER-GUIDE.md) · [Release notes](docs/releases/v1.2.8.md)
+[Full user guide](docs/USER-GUIDE.md) · [Release notes](docs/releases/v1.2.9.md)
 
 ## Build and checks
 
@@ -57,7 +59,7 @@ sh tests/run.sh
 
 Debug APKs use a development certificate. They are intended for development and cannot update the signed release in place. The project uses Gradle 8.13, Android Gradle Plugin 8.9.2 and test-only Robolectric 4.14.1.
 
-Version 1.2.8 passed **629 automated checks/cases**: 519 protocol/control, 40 storage and 70 Android runtime cases on API 31/35. Dark/light previews, three phone widths and larger text were checked. [Validation](tests/evidence/battery-controls-1.2.8.txt) · [APK verification](downloads/VERIFICATION.txt)
+Version 1.2.9 passed **655 automated checks/cases**: 519 protocol/control, 40 storage and 96 Android runtime cases on API 31/35. Dark/light previews, three phone widths and larger text were checked. [Validation](tests/evidence/auto-reconnect-1.2.9.txt) · [APK verification](downloads/VERIFICATION.txt)
 
 GitHub Actions checks the protocol and published APK, builds a development APK, and publishes the existing signed APK as a release. The private signing key is not required or uploaded. [Release maintenance](docs/RELEASING.md)
 

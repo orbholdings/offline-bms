@@ -67,8 +67,9 @@ public class ConnectionLifecycleTest {
             assertEquals(1,session.service.sessionStats.samples);
         }
     }
-    @Test public void realConnectionFailureStillStopsMonitoring() throws Exception {
+    @Test public void realConnectionFailureStopsMonitoringWhenReconnectIsDisabled() throws Exception {
         try(Session session=new Session()) {
+            session.service.getSharedPreferences("offline_bms",Context.MODE_PRIVATE).edit().putBoolean("auto_reconnect",false).commit();
             session.start();
             BluetoothGatt g=(BluetoothGatt)get(session.service.ble,"gatt");assertNotNull(g);
             BluetoothGattCallback callback=(BluetoothGattCallback)get(session.service.ble,"gattCallback");

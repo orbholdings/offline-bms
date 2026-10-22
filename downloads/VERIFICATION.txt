@@ -1,32 +1,45 @@
-OFFLINE BMS 1.2.8 - VERIFICATION
+OFFLINE BMS 1.2.9 — VERIFIED RELEASE
 
 Package: com.simon.offlinebms
-Version code: 13
+Version code: 14
 Minimum API: 31 (Android 12)
 Target/compile API: 35
 APK bytes: 148171
-APK SHA-256: 139b5a2396cee1d79bd5ea9006d1e8319a35ee24977e3a453f6aec7ff8cb619d
+APK SHA-256: 29e2f25808f8ec49b243975f211a881db6de36a89b80621bf6c77ad5760f42c8
+Signing certificate SHA-256: b57c03a2930b342f6f009844a1ea535e4634e964f5d2379b1a50850bbf646962
 
-46 JBD telemetry + 37 authentication + 66 offline feature/JK/Victron
-+ 65 parameter/transaction + 56 AC charger/address + 91 wider Victron
-+ 40 JK diagnostics/absent-sensor + 88 captured JK replay/validation
-+ 30 balancing wire-vector/layout/bit preservation + 40 SQLite/storage/export/backup
-+ 70 Android runtime = 629 passed.
+OFFLINE BMS 1.2.9 — AUTOMATIC RECONNECT VALIDATION
 
-New Android UI/control cases verify top arrows, wrapping, direct selection,
-page retention, previous reading removal, rapid requests, old callbacks,
-operation locking and the original centred bottom tabs at 360/393/412 dp
-in dark/light themes with larger text. JK balancing reads, explicit review,
-single control write, readback, refusal, timeout, cancellation and disconnect
-are simulated. JBD uses its reviewed bit-preserving parameter transaction.
-Native phone previews were inspected. Existing captured JK, storage, privacy,
-lifecycle and Victron regressions pass. See battery-controls-1.2.8.txt and
-runtime-1.2.8.log under tests/evidence in the source archive.
+655 checks/cases passed: 519 protocol/control, 40 host SQLite/storage and
+96 Android runtime cases across API 31 (Android 12) and API 35 (Android 15).
 
-Official SDK compilation, D8, archive and DEX integrity, aligned resources,
-and embedded signatures pass. Signing certificate matches 1.2.7; version
-code increases to 13. Six existing permissions; no INTERNET permission.
-No new physical JK/Victron result or battery parameter write is claimed.
+New lifecycle checks cover range loss, initial connection failure, one
+availability-based GATT request beyond the direct connection timeout,
+released BMS wake lock while waiting, Bluetooth off/on, revoked permission,
+stop during a queued/active reconnect, disabling automatic reconnect,
+switching targets and rejecting callbacks from the closed GATT, unsupported
+services, pause/resume intent and fresh JK telemetry after reconnection.
+A new session prevents integrating energy across the missing interval.
+
+UI cases cover automatic resume on opening (including existing profiles),
+explicit Stop and disabled preference, Saved readings while waiting,
+disabled balancing controls, reconnect status and the Tools switch.
+Dark/light waiting previews were visually checked. Existing phone-width,
+large-text, centred navigation, quick switching, parameter/balancing,
+captured JK, Victron, archive, storage and privacy regressions pass.
+
+The Bluetooth transport and responses are simulated. Robolectric 4.14.1's
+GATT shadow implements only the old descriptor-write overload; the reconnect
+tests supply the equivalent test-only API 33+ overload to deliver a normal
+subscription callback. Production code still uses the official SDK API.
+The CLI test runner records a completion result and rejects an incomplete
+run even when Java exits with status zero.
+
+Official SDK compilation and D8 completed. APK archive/DEX integrity,
+resource alignment and embedded signatures passed. Package, minimum/target
+SDK and the six permissions are retained. Version code increases to 14,
+and the certificate matches the existing release. No Internet permission.
+Physical return-to-range behaviour on a phone/BMS still needs confirmation.
 
 PERMISSIONS
 package: com.simon.offlinebms
@@ -55,4 +68,3 @@ Signer #1 key size (bits): 3072
 Signer #1 public key SHA-256 digest: fba30267f5d4ed808929676488f5cd5d8c6949e5c45111bdc96d94b1422b8c54
 Signer #1 public key SHA-1 digest: b3b8415a80eba06eb2e14781dbd313f40841952e
 Signer #1 public key MD5 digest: deaeac1a45fc51e8e5ca801b85568348
-

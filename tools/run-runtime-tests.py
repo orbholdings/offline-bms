@@ -6,6 +6,7 @@ import argparse,os,subprocess,urllib.parse,xml.etree.ElementTree as ET,zipfile
 p=argparse.ArgumentParser()
 for name in ['android-jar','compiled-classes','apk','previous-apk','lib','work']:
     p.add_argument('--'+name,type=Path,required=True)
+p.add_argument('--tests',nargs='+',default=['ConnectionLifecycleTest','AutoReconnectTest','LaunchTest','ArchiveParseTest'])
 a=p.parse_args();project=Path(__file__).resolve().parent.parent
 work=a.work.resolve();classes=work/'classes';classes.mkdir(parents=True,exist_ok=True)
 for aar in a.lib.glob('*.aar'):
@@ -13,8 +14,24 @@ for aar in a.lib.glob('*.aar'):
         if 'classes.jar' in z.namelist():aar.with_suffix('.jar').write_bytes(z.read('classes.jar'))
 jars=[str(x.resolve()) for x in a.lib.glob('*.jar')]
 cp=os.pathsep.join([str(a.android_jar.resolve()),str(a.compiled_classes.resolve())]+jars)
-tests=['ConnectionLifecycleTest','LaunchTest','ArchiveParseTest']
+tests=a.tests
 sources=[project/'app/src/test/java/com/simon/offlinebms'/(name+'.java') for name in tests]
+runner=work/'BmsRuntimeChecks.java'
+runner.write_text('''import java.nio.file.*;
+import org.junit.runner.*;
+import org.junit.runner.notification.Failure;
+public final class BmsRuntimeChecks {
+    public static void main(String[] names) throws Exception {
+        Class<?>[] tests=new Class<?>[names.length];
+        for(int i=0;i<names.length;i++)tests[i]=Class.forName(names[i]);
+        Result result=new JUnitCore().run(tests);
+        for(Failure failure:result.getFailures())System.out.println(failure.getTestHeader()+"\\n"+failure.getTrace());
+        String summary=(result.wasSuccessful()?"OK":"FAILED")+" ("+result.getRunCount()+" tests; "+result.getFailureCount()+" failures)";
+        Files.writeString(Path.of(System.getProperty("bms.resultFile")),summary);
+        System.out.println(summary);System.exit(result.wasSuccessful()?0:1);
+    }
+}''')
+sources.append(runner)
 subprocess.run(['java','-m','jdk.compiler/com.sun.tools.javac.Main','--release','11','-cp',cp,'-d',str(classes)]+[str(s) for s in sources],check=True)
 ns='http://schemas.android.com/apk/res/android';ET.register_namespace('android',ns)
 tree=ET.parse(a.compiled_classes.parent/'AndroidManifest.xml')
@@ -29,9 +46,12 @@ for module in ['java.base/java.lang','java.base/java.util','java.base/java.io','
     cmd.append('--add-opens='+module+'=ALL-UNNAMED')
 proxy=urllib.parse.urlparse(os.environ.get('HTTPS_PROXY') or os.environ.get('HTTP_PROXY',''))
 if proxy.hostname:cmd+=['-Dhttps.proxyHost='+proxy.hostname,'-Dhttps.proxyPort='+str(proxy.port or 80),'-Dhttp.proxyHost='+proxy.hostname,'-Dhttp.proxyPort='+str(proxy.port or 80)]
-cmd+=['-Drobolectric.dependency.repo.url=https://repo.maven.apache.org/maven2','-Dbms.previewDir='+str(work/'previews'),'-Dbms.fixtureDir='+str(project/'tests/fixtures'),'-Dbms.currentApk='+str(a.apk.resolve()),'-Dbms.previousApk='+str(a.previous_apk.resolve()),'-cp',cp,'org.junit.runner.JUnitCore']+['com.simon.offlinebms.'+t for t in tests]
+report=work/'runtime-result.txt';report.write_text('Running')
+cmd+=['-Drobolectric.dependency.repo.url=https://repo.maven.apache.org/maven2','-Dbms.resultFile='+str(report),'-Dbms.previewDir='+str(work/'previews'),'-Dbms.fixtureDir='+str(project/'tests/fixtures'),'-Dbms.currentApk='+str(a.apk.resolve()),'-Dbms.previousApk='+str(a.previous_apk.resolve()),'-cp',cp,'BmsRuntimeChecks']+['com.simon.offlinebms.'+t for t in tests]
 log=work/'runtime-tests.log'
 with log.open('w') as out:result=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
 print(log.read_text())
 print('Android test process exit:',result.returncode)
+if result.returncode==0 and not report.read_text().startswith('OK ('):raise SystemExit('Android test runner did not report completion')
+print(report.read_text())
 raise SystemExit(result.returncode)

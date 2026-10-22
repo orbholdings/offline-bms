@@ -43,6 +43,34 @@ public class LaunchTest {
     @Test public void opensDarkDashboard() throws Exception {open("Dark",false);}
     @Test public void opensLightDashboard() throws Exception {open("Light",false);}
     @Test public void opensSystemThemeDashboard() throws Exception {open("System",false);}
+    @Test public void openingTheAppResumesTheLastBatteryAndHonoursAnExplicitStop() throws Exception {
+        for(boolean migrated:new boolean[]{false,true}){
+            Application app=RuntimeEnvironment.getApplication();String address="AA:BB:CC:DD:EE:01";
+            android.content.SharedPreferences prefs=app.getSharedPreferences("offline_bms",Context.MODE_PRIVATE);
+            android.content.SharedPreferences.Editor e=prefs.edit().clear().putBoolean("record",false).putString("last_address",address).putString("last_name","Leisure battery");if(!migrated)e.putBoolean("resume_monitoring",true).putString("resume_address",address);e.commit();
+            new ProfileStore(app).put(new ProfileStore.Profile(address,"Leisure battery"));Shadows.shadowOf(app).grantPermissions(Manifest.permission.BLUETOOTH_SCAN,Manifest.permission.BLUETOOTH_CONNECT,Manifest.permission.POST_NOTIFICATIONS);Shadows.shadowOf(BluetoothAdapter.getDefaultAdapter()).setEnabled(true);
+            try(Screen screen=new Screen("Dark",false,true)){
+                MainActivity a=screen.activity();render(a);deliverNextConnection(a,screen.service.get());assertEquals(address,screen.service.get().address);assertTrue(screen.service.get().monitoring());assertEquals(address,getPrivate(a,"selected"));
+                screen.service.get().stopMonitoring();Method resume=MainActivity.class.getDeclaredMethod("resumeLastBattery");resume.setAccessible(true);resume.invoke(a);assertNoConnectionRequest(a);
+            }
+        }
+    }
+    @Test public void openingSavedDataDoesNotResumeWhenDisabledOrStopped() throws Exception {
+        for(boolean automatic:new boolean[]{false,true}){
+            Application app=RuntimeEnvironment.getApplication();app.getSharedPreferences("offline_bms",Context.MODE_PRIVATE).edit().clear().putString("last_address","AA:BB:CC:DD:EE:01").putString("last_name","Leisure battery").putBoolean("auto_reconnect",automatic).putBoolean("resume_monitoring",!automatic).commit();
+            try(Screen screen=new Screen("Dark",false,true)){render(screen.activity());assertNoConnectionRequest(screen.activity());assertFalse(screen.service.get().monitoring());}
+        }
+    }
+    @Test public void waitingDashboardKeepsSavedReadingsLabelledAndControlsDisabled() throws Exception {
+        for(String theme:new String[]{"Dark","Light"})try(Screen screen=new Screen(theme,false)){
+            MainActivity a=screen.activity();render(a);savedSwitchProfiles(a);MonitorService service=screen.service.get();startBluetoothSession(service);setPrivate(a,"selected",service.address);setPrivate(service.ble,"ready",true);
+            JkProtocol.Sample sample=JkProtocol.parse(capturedJk("first"),"Auto");service.onReading(new Reading(System.currentTimeMillis(),sample.basic,sample.cells,"Alpha ["+service.address+"]"));service.onState("Live · JK Bluetooth",true);showPage(a,"Overview");assertTrue(containsText(a.getWindow().getDecorView(),"LIVE"));
+            BluetoothGatt old=(BluetoothGatt)getPrivate(service.ble,"gatt");((BluetoothGattCallback)getPrivate(service.ble,"gattCallback")).onConnectionStateChange(old,0,BluetoothProfile.STATE_DISCONNECTED);renderPhone(a,393);
+            assertTrue(service.waitingForBattery());assertTrue(containsText(a.getWindow().getDecorView(),"13.13 V"));assertTrue(containsText(a.getWindow().getDecorView(),"SAVED"));assertFalse(containsText(a.getWindow().getDecorView(),"LIVE"));assertTrue(containsTextPart(a.getWindow().getDecorView(),"Waiting for battery"));assertFalse(((Button)getPrivate(a,"balanceToggle")).isEnabled());saveAppearancePreview(a,"reconnect-waiting-"+theme.toLowerCase(Locale.ROOT));
+            showPage(a,"Batteries");renderPhone(a,393);assertTrue(containsText(a.getWindow().getDecorView(),"WAITING"));assertNotNull(findButton(a.getWindow().getDecorView(),"Reconnect now"));
+            showPage(a,"Tools");assertTrue(containsText(a.getWindow().getDecorView(),"Reconnect automatically when back in range"));
+        }
+    }
     @Test public void bottomTabsKeepIconsLabelsAndSelectedStatesCentred() throws Exception {
         try{
             for(String theme:new String[]{"Dark","Light"})try(Screen screen=new Screen(theme,false)){
@@ -126,6 +154,7 @@ public class LaunchTest {
     }
     private static void showPage(MainActivity a,String page)throws Exception{Method show=MainActivity.class.getDeclaredMethod("showTab",String.class);show.setAccessible(true);show.invoke(a,page);}
     private static void deliverNextConnection(MainActivity a,MonitorService service){Intent intent;do{intent=Shadows.shadowOf(a).getNextStartedService();}while(intent!=null&&!MonitorService.CONNECT.equals(intent.getAction()));assertNotNull("A battery tap must start monitoring",intent);service.onStartCommand(intent,0,1);Shadows.shadowOf(Looper.getMainLooper()).idle();}
+    private static void assertNoConnectionRequest(MainActivity a){Intent intent;while((intent=Shadows.shadowOf(a).getNextStartedService())!=null)assertNotEquals("Stopped/disabled monitoring must not request a connection",MonitorService.CONNECT,intent.getAction());}
     @Test public void jkBalanceButtonReadsThenConfirmsAndVerifiesTheSetting() throws Exception {
         for(String theme:new String[]{"Dark","Light"})try(Screen screen=new Screen(theme,false)){
             MainActivity a=screen.activity();render(a);savedSwitchProfiles(a);BluetoothGattCharacteristic rx=liveControlJk(screen);MonitorService service=screen.service.get();BleClient ble=service.ble;BluetoothGatt g=(BluetoothGatt)getPrivate(ble,"gatt");showPage(a,"Cells");renderPhone(a,393);
@@ -413,9 +442,11 @@ public class LaunchTest {
     private static final class Screen implements AutoCloseable {
         final ServiceController<MonitorService> service;
         final ActivityController<MainActivity> controller;
-        Screen(String theme,boolean retained){
+        Screen(String theme,boolean retained){this(theme,retained,false);}
+        Screen(String theme,boolean retained,boolean resume){
             Application app=RuntimeEnvironment.getApplication();
             android.content.SharedPreferences.Editor e=app.getSharedPreferences("offline_bms",Context.MODE_PRIVATE).edit().putString("theme",theme);
+            if(!resume)e.putBoolean("resume_monitoring",false);
             if(retained)e.putString("last_address","AA:BB:CC:DD:EE:01").putString("last_name","Saved battery");
             e.commit();
             service=Robolectric.buildService(MonitorService.class).create();
