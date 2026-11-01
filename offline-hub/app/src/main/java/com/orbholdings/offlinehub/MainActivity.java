@@ -8,6 +8,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.content.res.Configuration;
 import android.view.Gravity;
 import android.view.View;
+import android.os.Build;
+import android.view.WindowInsets;
 import android.widget.*;
 import android.app.AlertDialog;
 import android.text.TextUtils;
@@ -42,6 +44,10 @@ public class MainActivity extends Activity {
     private LinearLayout row() { LinearLayout l = new LinearLayout(this); l.setOrientation(0); return l; }
     private void render() {
         root=column(); root.setBackgroundColor(bg); setContentView(root);
+        if(Build.VERSION.SDK_INT>=29){root.setOnApplyWindowInsetsListener((v,insets)->{
+            int bottom=insets.getSystemWindowInsetBottom();
+            v.setPadding(0,0,0,Math.max(dp(10),bottom));return insets;
+        });} else {root.setFitsSystemWindows(true);}
         LinearLayout header=row(); header.setGravity(Gravity.CENTER_VERTICAL);pad(header,22,18,22,16);
         TextView brand=text("◈  OFFLINE HUB",21,Color.WHITE,true);
         header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
@@ -79,15 +85,15 @@ public class MainActivity extends Activity {
             renderSensors();
         }
         info("DEMO BUILD  ·  Simulated values. No hardware commands.");
-        LinearLayout nav=row();nav.setGravity(Gravity.CENTER);pad(nav,8,10,8,12);
+        LinearLayout nav=row();nav.setGravity(Gravity.CENTER);pad(nav,8,6,8,8);
         String[] tabs={"Overview","Energy","Heating","Lights","Sensors"};
         String[] icons={"⌂","ϟ","♨","✦","◈"};
         for(int i=0;i<tabs.length;i++){
             final String tab=tabs[i];boolean active=tab.equals(section);
-            LinearLayout item=column();item.setGravity(Gravity.CENTER);pad(item,2,9,2,9);
+            LinearLayout item=column();item.setGravity(Gravity.CENTER);pad(item,2,5,2,5);
             item.setBackground(background(active?panel:bg,15));
-            TextView symbol=text(icons[i],23,active?teal:muted,true);symbol.setGravity(Gravity.CENTER);item.addView(symbol);
-            TextView label=text(tab,10,active?teal:muted,active);label.setGravity(Gravity.CENTER);item.addView(label);
+            TextView symbol=text(icons[i],20,active?teal:muted,true);symbol.setGravity(Gravity.CENTER);item.addView(symbol);
+            TextView label=text(tab,11,active?teal:muted,active);label.setGravity(Gravity.CENTER);item.addView(label);
             nav.addView(item,new LinearLayout.LayoutParams(0,-2,1));
             item.setOnClickListener(v->{section=tab;render();});
         }
