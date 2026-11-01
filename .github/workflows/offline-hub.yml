@@ -1,0 +1,47 @@
+name: Offline Hub APK
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/offline-hub-foundation
+    paths:
+      - 'offline-hub/**'
+      - '.github/workflows/offline-hub.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify Android SDK on runner
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          test -d "$ANDROID_HOME"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --version
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Build demo APK
+        working-directory: offline-hub
+        run: gradle --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Offline-Hub-demo-debug-apk
+          path: offline-hub/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Publish direct-download prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "offline-hub-demo-${{ github.run_number }}" \
+            offline-hub/app/build/outputs/apk/debug/app-debug.apk#Offline-Hub-Demo.apk \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "Offline Hub Demo build ${{ github.run_number }}" \
+            --notes "Unsigned-for-production Android debug build. Demonstration readings only; no real device control. APK is debug-signed and intended for testing." \
+            --prerelease
