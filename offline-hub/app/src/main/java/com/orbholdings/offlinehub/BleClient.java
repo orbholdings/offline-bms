@@ -248,7 +248,7 @@ public final class BleClient {
     private final BluetoothGattCallback gattCallback=new BluetoothGattCallback() {
         @Override public void onConnectionStateChange(BluetoothGatt g,int status,int state) { handler.post(()->{
             if(g!=gatt)return;
-            if(status!=BluetoothGatt.GATT_SUCCESS){fail("Bluetooth connection failed ("+status+"). Another BMS app or Home Assistant may be connected.",true);return;}
+            if(status!=BluetoothGatt.GATT_SUCCESS){fail("Bluetooth connection failed ("+status+"). Android could not establish the BLE link; retry after a few seconds.",true);return;}
             if(state==BluetoothProfile.STATE_CONNECTED){connecting=false;waitForDevice=false;handler.removeCallbacks(connectionTimeout);handler.postDelayed(connectionTimeout,18000);listener.onState("Connected · checking battery services…",false);try{if(!g.discoverServices())fail("Could not discover Bluetooth services.",true);}catch(SecurityException e){fail("Bluetooth permission was removed.");}}
             else if(state==BluetoothProfile.STATE_DISCONNECTED)fail("Battery disconnected. Tap Connect to try again.",true);
         }); }
