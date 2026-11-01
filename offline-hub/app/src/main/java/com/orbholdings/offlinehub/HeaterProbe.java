@@ -26,13 +26,13 @@ public final class HeaterProbe {
   if(g!=gatt||statusChannel==null||!notificationsReady||polls>=12)return;statusSent=true;polls++;
   statusSent=true;
   // AA55 command 1 is a read-only status query; packet format from diesel-heater-ble.
-  // Default passkey 1234 is used only for this query; no power/mode commands are sent.
-  byte[] packet=new byte[]{(byte)0xAA,0x55,12,34,1,0,0,47};
+  // User-confirmed passkey 0000 is used only for this query; no power/mode commands are sent.
+  byte[] packet=new byte[]{(byte)0xAA,0x55,0,0,1,0,0,1};
   try{
    boolean ok;
    if(Build.VERSION.SDK_INT>=33)ok=g.writeCharacteristic(statusChannel,packet,BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)==BluetoothStatusCodes.SUCCESS;
    else{statusChannel.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);statusChannel.setValue(packet);ok=g.writeCharacteristic(statusChannel);}
-   reportText+="\nTX STATUS QUERY #"+polls+" (command 1, default PIN 1234): "+hex(packet)+" · "+(ok?"queued":"rejected");
+   reportText+="\nTX STATUS QUERY #"+polls+" (command 1, configured PIN 0000): "+hex(packet)+" · "+(ok?"queued":"rejected");
    listener.report(reportText);
    listener.status(ok?"Status query sent · awaiting response":"Status query could not be queued");if(ok&&polls==1)handler.postDelayed(()->{if(g==gatt&&packets==0){BluetoothGattService svc=g.getService(UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb"));if(svc!=null){BluetoothGattCharacteristic ch=svc.getCharacteristic(UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb"));if(ch!=null){reads.add(ch);reportText+="\nFOLLOW-UP FFE1 READ after status request";listener.report(reportText);nextRead(g);}}}},1500);
   }catch(SecurityException e){listener.status("Bluetooth permission denied");}
