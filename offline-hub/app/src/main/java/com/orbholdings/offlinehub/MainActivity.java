@@ -22,6 +22,8 @@ public class MainActivity extends Activity {
     private LinearLayout root, content;
     private String section = "Overview";
     private JbdMonitor jbd;
+    private HeaterProbe heater;
+    private String heaterStatus="Not connected",heaterReport="";
     private BatteryGauge batteryGauge;
     private String batteryStatus="Not connected";
     private boolean live=false;
@@ -35,9 +37,14 @@ public class MainActivity extends Activity {
             @Override public void status(String s){runOnUiThread(()->{batteryStatus=s;if(s.startsWith("Disconnected")||s.startsWith("Connecting")||s.startsWith("Scanning")||s.startsWith("Not a compatible"))live=false;if(section.equals("Energy")||section.equals("Overview"))render();});}
             @Override public void reading(int p,float v,float a){runOnUiThread(()->{soc=p;voltage=v;current=a;live=true;batteryStatus="Connected · JBD";if(batteryGauge!=null)batteryGauge.setReading(p,v,a);if(section.equals("Energy")||section.equals("Overview"))render();});}
         });
+        heater=new HeaterProbe(this,new HeaterProbe.Listener(){
+            @Override public void status(String s){runOnUiThread(()->{heaterStatus=s;if(section.equals("Heating"))render();});}
+            @Override public void devices(java.util.List<String> devices){runOnUiThread(()->{if(devices.isEmpty()){new AlertDialog.Builder(MainActivity.this).setMessage("No BLE devices found. Wake the heater controller and retry.").setPositiveButton("OK",null).show();return;}new AlertDialog.Builder(MainActivity.this).setTitle("Select diesel heater").setItems(devices.toArray(new String[0]),(dialog,index)->heater.connect(devices.get(index))).setNegativeButton("Cancel",null).show();});}
+            @Override public void report(String s){runOnUiThread(()->{heaterReport=s;if(section.equals("Heating"))render();});}
+        });
         render();
     }
-    @Override protected void onDestroy(){if(jbd!=null)jbd.disconnect();super.onDestroy();}
+    @Override protected void onDestroy(){if(jbd!=null)jbd.disconnect();if(heater!=null)heater.disconnect();super.onDestroy();}
 
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
     private GradientDrawable background(int color, int radius) {
@@ -94,7 +101,17 @@ public class MainActivity extends Activity {
         } else if(section.equals("Heating")) {
             sectionLabel("CLIMATE");
             addTiles(new String[][]{{"DIESEL HEATER","Offline","Bluetooth not connected","♨"},{"CABIN TEMP","19.5°C","Demo only","◌"}});
-            info("Heater controls are disabled until a compatible Bluetooth connection is verified.");
+            TextView scanHeater=text("◉  SCAN & CONNECT DIESEL HEATER",13,teal,true);
+            scanHeater.setGravity(Gravity.CENTER);pad(scanHeater,12,17,12,17);scanHeater.setBackground(background(panel,16));content.addView(scanHeater);
+            scanHeater.setOnClickListener(v->heater.scan());
+            info("HEATER STATUS  ·  "+heaterStatus);
+            if(!heaterReport.isEmpty()){
+                TextView details=text(heaterReport,11,Color.WHITE,false);pad(details,12,14,12,14);
+                details.setTextIsSelectable(true);details.setBackground(background(panel,14));content.addView(details);
+                TextView copy=text("COPY DIAGNOSTIC REPORT",13,teal,true);pad(copy,12,18,12,18);content.addView(copy);
+                copy.setOnClickListener(v->{android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Heater BLE diagnostics",heaterReport));Toast.makeText(this,"Heater report copied",Toast.LENGTH_SHORT).show();});
+            }
+            info("Read-only discovery. No heater start, stop or temperature commands are sent.");
         } else if(section.equals("Lights")) {
             sectionLabel("LIGHTING ZONES");
             addTiles(new String[][]{{"LIVING AREA","Offline","No device paired","✦"},{"SLEEPING AREA","Offline","No device paired","✦"}});
