@@ -41,69 +41,103 @@ public class MainActivity extends Activity {
     private LinearLayout column() { LinearLayout l = new LinearLayout(this); l.setOrientation(1); return l; }
     private LinearLayout row() { LinearLayout l = new LinearLayout(this); l.setOrientation(0); return l; }
     private void render() {
-        root = column(); root.setBackgroundColor(bg);
-        setContentView(root);
-        LinearLayout header = row(); header.setGravity(Gravity.CENTER_VERTICAL); pad(header,20,20,20,14);
-        TextView name = text("◈  OFFLINE HUB",22,Color.WHITE,true);
-        header.addView(name,new LinearLayout.LayoutParams(0,-2,1));
-        TextView status = text("●  DEMO · OFFLINE",11,teal,true); header.addView(status);
-        root.addView(header);
-        LinearLayout nav = row(); pad(nav,12,2,12,10);
-        String[] tabs = {"Overview","Energy","Heating","Lights","Sensors"};
-        for (String tab: tabs) {
-            TextView button = text(tab,11,tab.equals(section)?teal:muted,tab.equals(section));
-            button.setGravity(Gravity.CENTER); pad(button,5,12,5,12);
-            button.setBackground(background(tab.equals(section)?panel:bg,12));
-            nav.addView(button,new LinearLayout.LayoutParams(0,-2,1));
-            button.setOnClickListener(v -> {section=tab; render();});
-        }
-        root.addView(nav);
-        ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true);
+        root=column(); root.setBackgroundColor(bg); setContentView(root);
+        LinearLayout header=row(); header.setGravity(Gravity.CENTER_VERTICAL);pad(header,22,18,22,16);
+        TextView brand=text("◈  OFFLINE HUB",21,Color.WHITE,true);
+        header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+        TextView state=text("●  DEMO",12,teal,true);header.addView(state);root.addView(header);
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setVerticalScrollBarEnabled(false);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        content = column(); pad(content,16,12,16,20); scroll.addView(content);
-        TextView heading = text(section,26,Color.WHITE,true); content.addView(heading);
-        TextView subtitle = text("Your van, your data. No cloud required.",13,muted,false);
-        pad(subtitle,0,5,0,20); content.addView(subtitle);
-        if (section.equals("Overview")) {
+        content=column();pad(content,18,10,18,26);scroll.addView(content);
+        TextView title=text(section.equals("Overview")?"Your van at a glance":section,29,Color.WHITE,true);content.addView(title);
+        TextView subtitle=text("LOCAL CONTROL  ·  NO CLOUD",11,teal,true);pad(subtitle,0,7,0,20);content.addView(subtitle);
+        if(section.equals("Overview")||section.equals("Energy")) {
+            batteryHero();
+            sectionLabel("POWER FLOW");
+            LinearLayout flow=row();flow.setGravity(Gravity.CENTER);pad(flow,14,17,14,17);
+            flow.setBackground(background(panel,18));
+            TextView power=text("☀  186 W    →    ◈ BATTERY    →    ⚡  54 W",13,teal,true);
+            power.setGravity(Gravity.CENTER);flow.addView(power,new LinearLayout.LayoutParams(-1,-2));
+            content.addView(flow);
+            sectionLabel(section.equals("Energy")?"ENERGY DETAILS":"YOUR SYSTEM");
             addTiles(new String[][] {
-                {"BATTERY","82%","12.9 V  ·  +4.2 A","▰▰▰▰▰▰▰▰▱▱"},
-                {"SOLAR","186 W","Charging · Demo","☀"},
-                {"HEATER","19.5°C","Off · Not connected","♨"},
-                {"LIGHTS","3 zones","No devices paired","◉"},
-                {"FRESH WATER","68%","Sensor not connected","◒"},
-                {"INSIDE TEMP","21.3°C","Demo reading","◌"}
+                {"SOLAR INPUT","186 W","Demo charging","☀"},
+                {"BATTERY CURRENT","+4.2 A","Demo reading","↗"},
+                {"DIESEL HEATER","19.5°C","Disconnected","♨"},
+                {"FRESH WATER","68%","Demo reading","◒"},
+                {"INTERIOR","21.3°C","Demo temperature","◌"},
+                {"LIGHTING","3 zones","Not paired","✦"}
             });
-        } else if (section.equals("Energy")) {
-            addTiles(new String[][] {{"HOUSE BATTERY","82%","Demo · 12.9 V","▰▰▰▰▰▰▰▰▱▱"},{"SOLAR INPUT","186 W","Demo only","☀"},{"BATTERY CURRENT","+4.2 A","Demo only","↗"}});
-        } else if (section.equals("Heating")) {
-            addTiles(new String[][] {{"DIESEL HEATER","Not connected","BLE discovery coming next","♨"},{"TEMPERATURE","19.5°C","Demo only · no heater commands enabled","◌"}});
-        } else if (section.equals("Lights")) {
-            addTiles(new String[][] {{"LIVING AREA","Not paired","Local lighting integration planned","◉"},{"SLEEPING AREA","Not paired","Local lighting integration planned","◉"}});
+        } else if(section.equals("Heating")) {
+            sectionLabel("CLIMATE");
+            addTiles(new String[][]{{"DIESEL HEATER","Offline","Bluetooth not connected","♨"},{"CABIN TEMP","19.5°C","Demo only","◌"}});
+            info("Heater controls are disabled until a compatible Bluetooth connection is verified.");
+        } else if(section.equals("Lights")) {
+            sectionLabel("LIGHTING ZONES");
+            addTiles(new String[][]{{"LIVING AREA","Offline","No device paired","✦"},{"SLEEPING AREA","Offline","No device paired","✦"}});
         } else {
             renderSensors();
-            addTiles(new String[][] {{"FRESH WATER","68%","Demo only","◒"},{"TEMPERATURE","21.3°C","Demo only","◌"},{"DOORS","Not paired","ESP32 sensors planned","▣"}});
         }
-        TextView footer = text("PROTOTYPE v0.1  ·  All readings are simulated. No hardware controls.",12,muted,false);
-        pad(footer,4,24,4,10); content.addView(footer);
+        info("DEMO BUILD  ·  Simulated values. No hardware commands.");
+        LinearLayout nav=row();nav.setGravity(Gravity.CENTER);pad(nav,8,10,8,12);
+        String[] tabs={"Overview","Energy","Heating","Lights","Sensors"};
+        String[] icons={"⌂","ϟ","♨","✦","◈"};
+        for(int i=0;i<tabs.length;i++){
+            final String tab=tabs[i];boolean active=tab.equals(section);
+            LinearLayout item=column();item.setGravity(Gravity.CENTER);pad(item,2,9,2,9);
+            item.setBackground(background(active?panel:bg,15));
+            TextView symbol=text(icons[i],23,active?teal:muted,true);symbol.setGravity(Gravity.CENTER);item.addView(symbol);
+            TextView label=text(tab,10,active?teal:muted,active);label.setGravity(Gravity.CENTER);item.addView(label);
+            nav.addView(item,new LinearLayout.LayoutParams(0,-2,1));
+            item.setOnClickListener(v->{section=tab;render();});
+        }
+        root.addView(nav);
     }
-    private void addTiles(String[][] tiles) {
-        boolean wide = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE
-            && getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density >= 700;
-        int cols = wide ? 3 : 2;
-        for (int i=0;i<tiles.length;i+=cols) {
-            LinearLayout r = row(); content.addView(r);
-            for (int j=0;j<cols;j++) {
-                LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0,dp(172),1);
-                p.setMargins(dp(5),dp(5),dp(5),dp(5));
-                if (i+j>=tiles.length) {r.addView(new View(this),p);continue;}
-                String[] item=tiles[i+j];
-                LinearLayout card=column(); pad(card,17,16,12,12);
-                card.setBackground(background(panel,18));
-                TextView label=text(item[0],11,muted,true); card.addView(label);
-                TextView value=text(item[1],25,Color.WHITE,true); pad(value,0,14,0,7);card.addView(value);
-                TextView detail=text(item[2],12,muted,false);detail.setMaxLines(2);detail.setEllipsize(TextUtils.TruncateAt.END);card.addView(detail);
-                TextView mark=text(item[3],16,teal,false);pad(mark,0,9,0,0);card.addView(mark);
-                r.addView(card,p);
+    private void sectionLabel(String label){
+        TextView t=text(label,11,muted,true);pad(t,3,22,0,11);content.addView(t);
+    }
+    private void info(String message){
+        TextView t=text(message,11,muted,false);pad(t,5,18,5,8);content.addView(t);
+    }
+    private void batteryHero(){
+        LinearLayout hero=column();pad(hero,22,22,22,23);
+        GradientDrawable gradient=new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+            new int[]{Color.rgb(27,56,72),Color.rgb(24,35,53)});
+        gradient.setCornerRadius(dp(24));hero.setBackground(gradient);
+        LinearLayout top=row();top.setGravity(Gravity.CENTER_VERTICAL);
+        TextView name=text("◈  HOUSE BATTERY",12,teal,true);
+        top.addView(name,new LinearLayout.LayoutParams(0,-2,1));
+        top.addView(text("● DEMO",11,muted,true));hero.addView(top);
+        TextView percentage=text("82%",57,Color.WHITE,true);pad(percentage,0,14,0,0);hero.addView(percentage);
+        TextView description=text("Battery capacity  ·  Not connected",12,muted,false);hero.addView(description);
+        LinearLayout gauge=row();pad(gauge,0,22,0,18);
+        for(int i=0;i<20;i++){
+            View segment=new View(this);segment.setBackground(background(i<16?teal:Color.rgb(57,77,89),4));
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(11),1);p.setMargins(dp(1),0,dp(1),0);gauge.addView(segment,p);
+        }
+        hero.addView(gauge);
+        LinearLayout stats=row();
+        TextView volts=text("12.9 V  VOLTAGE",12,Color.WHITE,true);stats.addView(volts,new LinearLayout.LayoutParams(0,-2,1));
+        TextView amps=text("+4.2 A  CURRENT",12,Color.WHITE,true);amps.setGravity(Gravity.RIGHT);stats.addView(amps);
+        hero.addView(stats);content.addView(hero);
+    }
+    private void addTiles(String[][] tiles){
+        int width=getResources().getDisplayMetrics().widthPixels;
+        boolean wide=width/getResources().getDisplayMetrics().density>=700;
+        int cols=wide?3:2;
+        for(int i=0;i<tiles.length;i+=cols){
+            LinearLayout line=row();content.addView(line);
+            for(int j=0;j<cols;j++){
+                LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(145),1);p.setMargins(dp(4),dp(4),dp(4),dp(4));
+                if(i+j>=tiles.length){line.addView(new View(this),p);continue;}
+                String[] tile=tiles[i+j];LinearLayout card=column();pad(card,15,14,12,12);
+                card.setBackground(background(panel,19));
+                LinearLayout head=row();head.setGravity(Gravity.CENTER_VERTICAL);
+                TextView label=text(tile[0],10,muted,true);head.addView(label,new LinearLayout.LayoutParams(0,-2,1));
+                head.addView(text(tile[3],17,teal,false));card.addView(head);
+                TextView value=text(tile[1],23,Color.WHITE,true);pad(value,0,17,0,7);card.addView(value);
+                TextView detail=text(tile[2],11,muted,false);detail.setMaxLines(2);card.addView(detail);
+                line.addView(card,p);
             }
         }
     }
