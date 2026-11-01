@@ -9,6 +9,7 @@ import android.content.res.Configuration;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
+import android.app.AlertDialog;
 import android.text.TextUtils;
 
 public class MainActivity extends Activity {
@@ -79,6 +80,7 @@ public class MainActivity extends Activity {
         } else if (section.equals("Lights")) {
             addTiles(new String[][] {{"LIVING AREA","Not paired","Local lighting integration planned","◉"},{"SLEEPING AREA","Not paired","Local lighting integration planned","◉"}});
         } else {
+            renderSensors();
             addTiles(new String[][] {{"FRESH WATER","68%","Demo only","◒"},{"TEMPERATURE","21.3°C","Demo only","◌"},{"DOORS","Not paired","ESP32 sensors planned","▣"}});
         }
         TextView footer = text("PROTOTYPE v0.1  ·  All readings are simulated. No hardware controls.",12,muted,false);
@@ -105,4 +107,51 @@ public class MainActivity extends Activity {
             }
         }
     }
+    private void renderSensors() {
+        SensorStore store=new SensorStore(this);
+        TextView add=text("+ Add sensor",16,teal,true);
+        pad(add,14,14,14,14);add.setBackground(background(panel,14));
+        content.addView(add);
+        add.setOnClickListener(v -> showAddSensor(store));
+        for (SensorStore.Sensor s:store.list()) {
+            LinearLayout r=row();r.setGravity(Gravity.CENTER_VERTICAL);pad(r,14,14,14,14);
+            r.setBackground(background(panel,12));
+            LinearLayout details=column();
+            details.addView(text(s.name,17,Color.WHITE,true));
+            details.addView(text(s.zone+" · "+s.type+" · "+s.transport+" · Not connected",12,muted,false));
+            r.addView(details,new LinearLayout.LayoutParams(0,-2,1));
+            TextView delete=text("Remove",12,muted,false);pad(delete,8,8,8,8);
+            r.addView(delete);delete.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Remove "+s.name+"?").setMessage("This removes its saved configuration.")
+                .setNegativeButton("Cancel",null)
+                .setPositiveButton("Remove",(d,w)->{store.remove(s.id);render();}).show());
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+            lp.setMargins(0,dp(8),0,dp(4));content.addView(r,lp);
+        }
+        TextView note=text("Saved sensors are configuration only. Live discovery and readings are not implemented yet.",12,muted,false);
+        pad(note,4,12,4,16);content.addView(note);
+    }
+    private void showAddSensor(SensorStore store) {
+        LinearLayout form=column();pad(form,22,8,22,0);
+        EditText name=new EditText(this);name.setSingleLine(true);name.setHint("Sensor name");form.addView(name);
+        EditText zone=new EditText(this);zone.setSingleLine(true);zone.setHint("Location / zone");form.addView(zone);
+        Spinner type=new Spinner(this);
+        type.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,SensorStore.TYPES));
+        form.addView(type);
+        Spinner transport=new Spinner(this);
+        transport.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,SensorStore.TRANSPORTS));
+        form.addView(transport);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Add sensor").setView(form)
+            .setNegativeButton("Cancel",null).setPositiveButton("Save",null).create();
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            if(name.getText().toString().trim().isEmpty()) {name.setError("Enter a name");return;}
+            try {
+                store.add(name.getText().toString(),zone.getText().toString(),
+                    type.getSelectedItem().toString(),transport.getSelectedItem().toString());
+                dialog.dismiss();render();
+            } catch(Exception ex) {Toast.makeText(this,"Could not save sensor",Toast.LENGTH_LONG).show();}
+        }));
+        dialog.show();
+    }
+
 }
