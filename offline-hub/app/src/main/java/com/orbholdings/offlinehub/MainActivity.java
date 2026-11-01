@@ -100,7 +100,7 @@ public class MainActivity extends Activity {
             });
         } else if(section.equals("Heating")) {
             sectionLabel("CLIMATE");
-            addTiles(new String[][]{{"DIESEL HEATER","Offline","Bluetooth not connected","♨"},{"CABIN TEMP","19.5°C","Demo only","◌"}});
+            addTiles(new String[][]{{"DIESEL HEATER",heaterStatus.startsWith("Heater connected")||heaterStatus.startsWith("Status query")||heaterStatus.startsWith("Heater telemetry")?"BLE connected":"Offline",heaterStatus,"♨"},{"CABIN TEMP","—","Awaiting validated heater telemetry","◌"}});
             TextView scanHeater=text("◉  SCAN & CONNECT DIESEL HEATER",13,teal,true);
             scanHeater.setGravity(Gravity.CENTER);pad(scanHeater,12,17,12,17);scanHeater.setBackground(background(panel,16));content.addView(scanHeater);
             scanHeater.setOnClickListener(v->heater.scan());
