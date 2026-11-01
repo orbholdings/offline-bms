@@ -23,6 +23,8 @@ public class JbdMonitor {
     private BluetoothGattCharacteristic write,notify;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final ByteArrayOutputStream rx=new ByteArrayOutputStream();
+    private boolean gotReading=false;
+    private int notifications=0;
     private static final UUID SERVICE=UUID.fromString("0000ff00-0000-1000-8000-00805f9b34fb");
     private static final UUID TX=UUID.fromString("0000ff02-0000-1000-8000-00805f9b34fb");
     private static final UUID RX=UUID.fromString("0000ff01-0000-1000-8000-00805f9b34fb");
@@ -77,7 +79,7 @@ public class JbdMonitor {
         if(!ready())return;
         int pos=selected.lastIndexOf("  ·  ");if(pos<0)return;
         BluetoothDevice device=devices.get(selected.substring(pos+5));if(device==null)return;
-        stopScan();disconnect();
+        stopScan();disconnect();gotReading=false;notifications=0;
         listener.status("Connecting to "+selected+"…");
         try{gatt=device.connectGatt(activity,false,callback,BluetoothDevice.TRANSPORT_LE);}
         catch(SecurityException e){listener.status("Bluetooth permission denied");}
@@ -103,7 +105,7 @@ public class JbdMonitor {
             }catch(SecurityException e){listener.status("Permission denied");}
         }
         @Override public void onDescriptorWrite(BluetoothGatt g,BluetoothGattDescriptor d,int status){
-            if(status==BluetoothGatt.GATT_SUCCESS){listener.status("JBD live telemetry");poll();}
+            if(status==BluetoothGatt.GATT_SUCCESS){listener.status("JBD connected · waiting for battery data");poll();handler.postDelayed(()->{if(gatt!=null&&!gotReading)listener.status("Connected · no valid JBD readings ("+notifications+" notifications)");},11000);}
             else listener.status("Could not enable JBD notifications");
         }
         @Override public void onCharacteristicChanged(BluetoothGatt g,BluetoothGattCharacteristic c){
@@ -125,6 +127,7 @@ public class JbdMonitor {
     }
     private synchronized void parse(byte[] bytes){
         if(bytes==null)return;
+        notifications++;
         for(byte b:bytes)rx.write(b);
         byte[] data=rx.toByteArray();int offset=0;
         while(offset+7<=data.length){
@@ -142,7 +145,7 @@ public class JbdMonitor {
                 int raw=((data[base+2]&255)<<8)|(data[base+3]&255);
                 float current=(short)raw/100f;
                 int percent=data[base+19]&255;
-                if(length>19&&percent<=100)handler.post(()->listener.reading(percent,voltage,current));
+                if(length>19&&percent<=100&&voltage>0&&voltage<1000){gotReading=true;handler.post(()->listener.reading(percent,voltage,current));}
             }
             offset+=total;
         }
