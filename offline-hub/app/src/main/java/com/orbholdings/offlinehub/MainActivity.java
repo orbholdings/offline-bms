@@ -32,8 +32,8 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(bg);
         getWindow().setNavigationBarColor(bg);
         jbd=new JbdMonitor(this,new JbdMonitor.Listener(){
-            @Override public void status(String s){runOnUiThread(()->{batteryStatus=s;if(section.equals("Energy")||section.equals("Overview"))render();});}
-            @Override public void reading(int p,float v,float a){runOnUiThread(()->{soc=p;voltage=v;current=a;live=true;batteryStatus="Connected · JBD";if(batteryGauge!=null)batteryGauge.setReading(p,v,a);});}
+            @Override public void status(String s){runOnUiThread(()->{batteryStatus=s;if(s.startsWith("Disconnected")||s.startsWith("Connecting")||s.startsWith("Scanning")||s.startsWith("Not a compatible"))live=false;if(section.equals("Energy")||section.equals("Overview"))render();});}
+            @Override public void reading(int p,float v,float a){runOnUiThread(()->{soc=p;voltage=v;current=a;live=true;batteryStatus="Connected · JBD";if(batteryGauge!=null)batteryGauge.setReading(p,v,a);if(section.equals("Energy")||section.equals("Overview"))render();});}
         });
         render();
     }
@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         LinearLayout header=row(); header.setGravity(Gravity.CENTER_VERTICAL);pad(header,22,18,22,16);
         TextView brand=text("◈  OFFLINE HUB",21,Color.WHITE,true);
         header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
-        TextView state=text("●  DEMO",12,teal,true);header.addView(state);root.addView(header);
+        TextView state=text(live?"●  JBD LIVE":"●  DEMO",12,teal,true);header.addView(state);root.addView(header);
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setVerticalScrollBarEnabled(false);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         content=column();pad(content,18,10,18,26);scroll.addView(content);
@@ -79,13 +79,13 @@ public class MainActivity extends Activity {
             sectionLabel("POWER FLOW");
             LinearLayout flow=row();flow.setGravity(Gravity.CENTER);pad(flow,14,17,14,17);
             flow.setBackground(background(panel,18));
-            TextView power=text("☀  186 W    →    ◈ BATTERY    →    ⚡  54 W",13,teal,true);
+            TextView power=text(live?String.format(java.util.Locale.UK,"◈ BATTERY  ·  %.0f W %s",Math.abs(voltage*current),current<0?"DISCHARGING":"CHARGING"):"☀  186 W    →    ◈ BATTERY    →    ⚡  54 W",13,teal,true);
             power.setGravity(Gravity.CENTER);flow.addView(power,new LinearLayout.LayoutParams(-1,-2));
             content.addView(flow);
             sectionLabel(section.equals("Energy")?"ENERGY DETAILS":"YOUR SYSTEM");
             addTiles(new String[][] {
-                {"SOLAR INPUT","186 W","Demo charging","☀"},
-                {"BATTERY CURRENT","+4.2 A","Demo reading","↗"},
+                {"SOLAR INPUT",live?"—":"186 W",live?"Not connected":"Demo charging","☀"},
+                {"BATTERY CURRENT",live?String.format(java.util.Locale.UK,"%+.2f A",current):"+4.2 A",live?"Live JBD reading":"Demo reading","↗"},
                 {"DIESEL HEATER","19.5°C","Disconnected","♨"},
                 {"FRESH WATER","68%","Demo reading","◒"},
                 {"INTERIOR","21.3°C","Demo temperature","◌"},
@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
         } else {
             renderSensors();
         }
-        info("DEMO BUILD  ·  Simulated values. No hardware commands.");
+        info(live?"JBD BATTERY LIVE  ·  Other tiles are demo or disconnected. Read-only monitoring.":"DEMO BUILD  ·  Simulated values unless a battery is connected. No device control.");
         LinearLayout nav=row();nav.setGravity(Gravity.CENTER);pad(nav,8,6,8,8);
         String[] tabs={"Overview","Energy","Heating","Lights","Sensors"};
         String[] icons={"⌂","ϟ","♨","✦","◈"};
@@ -130,7 +130,7 @@ public class MainActivity extends Activity {
         LinearLayout top=row();top.setGravity(Gravity.CENTER_VERTICAL);
         TextView name=text("◈  HOUSE BATTERY",12,teal,true);
         top.addView(name,new LinearLayout.LayoutParams(0,-2,1));
-        top.addView(text("● DEMO",11,muted,true));hero.addView(top);
+        top.addView(text(live?"● LIVE":"● DEMO",11,live?teal:muted,true));hero.addView(top);
         batteryGauge=new BatteryGauge(this);
         if(live)batteryGauge.setReading(soc,voltage,current);
         hero.addView(batteryGauge,new LinearLayout.LayoutParams(-1,dp(265)));
