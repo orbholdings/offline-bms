@@ -21,13 +21,23 @@ public class MainActivity extends Activity {
     private final int teal = Color.rgb(73, 218, 191);
     private LinearLayout root, content;
     private String section = "Overview";
+    private JbdMonitor jbd;
+    private BatteryGauge batteryGauge;
+    private String batteryStatus="Not connected";
+    private boolean live=false;
+    private int soc=82;private float voltage=12.9f,current=4.2f;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setStatusBarColor(bg);
         getWindow().setNavigationBarColor(bg);
+        jbd=new JbdMonitor(this,new JbdMonitor.Listener(){
+            @Override public void status(String s){runOnUiThread(()->{batteryStatus=s;if(section.equals("Energy")||section.equals("Overview"))render();});}
+            @Override public void reading(int p,float v,float a){runOnUiThread(()->{soc=p;voltage=v;current=a;live=true;batteryStatus="Connected · JBD";if(batteryGauge!=null)batteryGauge.setReading(p,v,a);});}
+        });
         render();
     }
+    @Override protected void onDestroy(){if(jbd!=null)jbd.disconnect();super.onDestroy();}
 
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
     private GradientDrawable background(int color, int radius) {
@@ -59,6 +69,13 @@ public class MainActivity extends Activity {
         TextView subtitle=text("LOCAL CONTROL  ·  NO CLOUD",11,teal,true);pad(subtitle,0,7,0,20);content.addView(subtitle);
         if(section.equals("Overview")||section.equals("Energy")) {
             batteryHero();
+            TextView connect=text("◉  SCAN & CONNECT JBD BATTERY",13,teal,true);
+            connect.setGravity(Gravity.CENTER);pad(connect,12,15,12,15);connect.setBackground(background(panel,16));
+            content.addView(connect);connect.setOnClickListener(v->jbd.scan(devices->{
+                if(devices.isEmpty()){new AlertDialog.Builder(this).setMessage("No Bluetooth devices found. Make sure the JBD is awake and not connected to another app.").setPositiveButton("OK",null).show();return;}
+                new AlertDialog.Builder(this).setTitle("Select JBD battery").setItems(devices.toArray(new String[0]),(d,index)->jbd.connect(devices.get(index))).setNegativeButton("Cancel",null).show();
+            }));
+            TextView connection=text("STATUS  ·  "+batteryStatus,11,muted,false);pad(connection,6,12,0,0);content.addView(connection);
             sectionLabel("POWER FLOW");
             LinearLayout flow=row();flow.setGravity(Gravity.CENTER);pad(flow,14,17,14,17);
             flow.setBackground(background(panel,18));
@@ -114,8 +131,10 @@ public class MainActivity extends Activity {
         TextView name=text("◈  HOUSE BATTERY",12,teal,true);
         top.addView(name,new LinearLayout.LayoutParams(0,-2,1));
         top.addView(text("● DEMO",11,muted,true));hero.addView(top);
-        hero.addView(new BatteryGauge(this),new LinearLayout.LayoutParams(-1,dp(265)));
-        TextView description=text("Battery not connected  ·  Simulated readings",11,muted,false);
+        batteryGauge=new BatteryGauge(this);
+        if(live)batteryGauge.setReading(soc,voltage,current);
+        hero.addView(batteryGauge,new LinearLayout.LayoutParams(-1,dp(265)));
+        TextView description=text(live?"Live JBD reading":"Battery not connected  ·  Simulated readings",11,muted,false);
         description.setGravity(Gravity.CENTER);hero.addView(description);
         content.addView(hero);
     }
