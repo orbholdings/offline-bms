@@ -114,18 +114,10 @@ public class MainActivity extends Activity {
         TextView name=text("◈  HOUSE BATTERY",12,teal,true);
         top.addView(name,new LinearLayout.LayoutParams(0,-2,1));
         top.addView(text("● DEMO",11,muted,true));hero.addView(top);
-        TextView percentage=text("82%",57,Color.WHITE,true);pad(percentage,0,14,0,0);hero.addView(percentage);
-        TextView description=text("Battery capacity  ·  Not connected",12,muted,false);hero.addView(description);
-        LinearLayout gauge=row();pad(gauge,0,22,0,18);
-        for(int i=0;i<20;i++){
-            View segment=new View(this);segment.setBackground(background(i<16?teal:Color.rgb(57,77,89),4));
-            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(11),1);p.setMargins(dp(1),0,dp(1),0);gauge.addView(segment,p);
-        }
-        hero.addView(gauge);
-        LinearLayout stats=row();
-        TextView volts=text("12.9 V  VOLTAGE",12,Color.WHITE,true);stats.addView(volts,new LinearLayout.LayoutParams(0,-2,1));
-        TextView amps=text("+4.2 A  CURRENT",12,Color.WHITE,true);amps.setGravity(Gravity.RIGHT);stats.addView(amps);
-        hero.addView(stats);content.addView(hero);
+        hero.addView(new BatteryGauge(this),new LinearLayout.LayoutParams(-1,dp(265)));
+        TextView description=text("Battery not connected  ·  Simulated readings",11,muted,false);
+        description.setGravity(Gravity.CENTER);hero.addView(description);
+        content.addView(hero);
     }
     private void addTiles(String[][] tiles){
         int width=getResources().getDisplayMetrics().widthPixels;
