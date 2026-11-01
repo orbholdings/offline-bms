@@ -32,7 +32,7 @@ public final class HeaterProtocol {
   byte[] d=b;
   String family;
   if(b.length==48){
-   d=b.clone();byte[] key="12345678".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+   d=b.clone();byte[] key="password".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
    for(int i=0;i<48;i++)d[i]=(byte)(d[i]^key[i%8]);
    if(u(d,0)!=0xAA||(u(d,1)!=0x55&&u(d,1)!=0x66))return null;
    family=u(d,1)==0x55?"AA55 encrypted":"AA66 encrypted";
