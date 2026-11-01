@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         LinearLayout header=row(); header.setGravity(Gravity.CENTER_VERTICAL);pad(header,22,18,22,16);
         TextView brand=text("◈  OFFLINE HUB",21,Color.WHITE,true);
         header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
-        TextView state=text(live?"●  JBD LIVE":"●  DEMO",12,teal,true);header.addView(state);root.addView(header);
+        TextView state=text(live?"●  JBD LIVE":batteryStatus.startsWith("JBD connected")||batteryStatus.startsWith("Connected")?"●  CONNECTED":"●  DEMO",12,teal,true);header.addView(state);root.addView(header);
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setVerticalScrollBarEnabled(false);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         content=column();pad(content,18,10,18,26);scroll.addView(content);
@@ -130,9 +130,10 @@ public class MainActivity extends Activity {
         LinearLayout top=row();top.setGravity(Gravity.CENTER_VERTICAL);
         TextView name=text("◈  HOUSE BATTERY",12,teal,true);
         top.addView(name,new LinearLayout.LayoutParams(0,-2,1));
-        top.addView(text(live?"● LIVE":"● DEMO",11,live?teal:muted,true));hero.addView(top);
+        top.addView(text(live?"● LIVE":batteryStatus.startsWith("JBD connected")||batteryStatus.startsWith("Connected")?"● WAITING":"● DEMO",11,live?teal:muted,true));hero.addView(top);
         batteryGauge=new BatteryGauge(this);
         if(live)batteryGauge.setReading(soc,voltage,current);
+        else if(batteryStatus.startsWith("JBD connected")||batteryStatus.startsWith("Connected"))batteryGauge.setWaiting();
         hero.addView(batteryGauge,new LinearLayout.LayoutParams(-1,dp(265)));
         TextView description=text(live?"Live JBD reading":"Battery not connected  ·  Simulated readings",11,muted,false);
         description.setGravity(Gravity.CENTER);hero.addView(description);
