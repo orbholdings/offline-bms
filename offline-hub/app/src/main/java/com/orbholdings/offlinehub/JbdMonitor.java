@@ -24,6 +24,8 @@ public class JbdMonitor {
     private int retryCount=0;
     private boolean closed=false;
     private BluetoothGattCharacteristic write,notify;
+    private BluetoothGattCharacteristic secondaryNotify;
+    private boolean secondarySubscribed=false;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final ByteArrayOutputStream rx=new ByteArrayOutputStream();
     private boolean gotReading=false;
@@ -82,7 +84,7 @@ public class JbdMonitor {
         if(!ready())return;
         int pos=selected.lastIndexOf("  ·  ");if(pos<0)return;
         BluetoothDevice device=devices.get(selected.substring(pos+5));if(device==null)return;
-        stopScan();disconnect();closed=false;retryCount=0;lastDevice=device;gotReading=false;notifications=0;
+        stopScan();disconnect();closed=false;retryCount=0;lastDevice=device;gotReading=false;notifications=0;secondarySubscribed=false;
         listener.status("Connecting to "+selected+"…");
         try{gatt=device.connectGatt(activity,false,callback,BluetoothDevice.TRANSPORT_LE);}
         catch(SecurityException e){listener.status("Bluetooth permission denied");}
@@ -111,6 +113,7 @@ public class JbdMonitor {
             write=service.getCharacteristic(TX);notify=service.getCharacteristic(RX);
             if(write==null||notify==null){listener.status("JBD characteristics not found");return;}
             try{
+                secondaryNotify=(write.getProperties()&(BluetoothGattCharacteristic.PROPERTY_NOTIFY|BluetoothGattCharacteristic.PROPERTY_INDICATE))!=0 && write.getDescriptor(CCC)!=null?write:null;
                 g.setCharacteristicNotification(notify,true);
                 BluetoothGattDescriptor descriptor=notify.getDescriptor(CCC);
                 if(descriptor==null){listener.status("Notification descriptor unavailable");return;}
@@ -119,7 +122,19 @@ public class JbdMonitor {
             }catch(SecurityException e){listener.status("Permission denied");}
         }
         @Override public void onDescriptorWrite(BluetoothGatt g,BluetoothGattDescriptor d,int status){
-            if(status==BluetoothGatt.GATT_SUCCESS){listener.status("JBD connected · waiting for battery data");poll();handler.postDelayed(()->{if(gatt!=null&&!gotReading)listener.status("Connected · no valid JBD readings ("+notifications+" notifications)");},11000);}
+            if(status==BluetoothGatt.GATT_SUCCESS){
+                if(!secondarySubscribed&&secondaryNotify!=null){
+                    secondarySubscribed=true;
+                    try{
+                        g.setCharacteristicNotification(secondaryNotify,true);
+                        BluetoothGattDescriptor extra=secondaryNotify.getDescriptor(CCC);
+                        byte[] flag=(secondaryNotify.getProperties()&BluetoothGattCharacteristic.PROPERTY_NOTIFY)!=0?BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE:BluetoothGattDescriptor.ENABLE_INDICATION_VALUE;
+                        if(Build.VERSION.SDK_INT>=33)g.writeDescriptor(extra,flag);
+                        else{extra.setValue(flag);g.writeDescriptor(extra);}
+                        return;
+                    }catch(Exception ignored){}
+                }
+                listener.status("JBD connected · waiting for battery data");poll();handler.postDelayed(()->{if(gatt!=null&&!gotReading)listener.status("Connected · no valid JBD readings ("+notifications+" notifications)");},11000);}
             else listener.status("Could not enable JBD notifications");
         }
         @Override public void onCharacteristicChanged(BluetoothGatt g,BluetoothGattCharacteristic c){
@@ -134,8 +149,10 @@ public class JbdMonitor {
         if(gatt==null||write==null)return;
         byte[] cmd={(byte)0xDD,(byte)0xA5,0x03,0x00,(byte)0xFF,(byte)0xFD,0x77};
         try{
-            if(Build.VERSION.SDK_INT>=33)gatt.writeCharacteristic(write,cmd,BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
-            else{write.setValue(cmd);gatt.writeCharacteristic(write);}
+            int properties=write.getProperties();
+            int type=(properties&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0?BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE:BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+            if(Build.VERSION.SDK_INT>=33){int result=gatt.writeCharacteristic(write,cmd,type);if(result!=BluetoothStatusCodes.SUCCESS)listener.status("JBD request rejected ("+result+")");}
+            else{write.setWriteType(type);write.setValue(cmd);if(!gatt.writeCharacteristic(write))listener.status("JBD request could not be sent");}
             handler.removeCallbacks(poller);handler.postDelayed(poller,3000);
         }catch(SecurityException e){listener.status("Bluetooth permission denied");}
     }
