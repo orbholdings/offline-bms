@@ -29,6 +29,8 @@ public class JbdMonitor {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final ByteArrayOutputStream rx=new ByteArrayOutputStream();
     private boolean gotReading=false;
+    private boolean loginPending=false;
+    private final Runnable loginFallback=()->{if(loginPending){loginPending=false;listener.status("Classic JBD · requesting readings");poll();}};
     private int notifications=0;
     private static final UUID SERVICE=UUID.fromString("0000ff00-0000-1000-8000-00805f9b34fb");
     private static final UUID TX=UUID.fromString("0000ff02-0000-1000-8000-00805f9b34fb");
@@ -84,7 +86,7 @@ public class JbdMonitor {
         if(!ready())return;
         int pos=selected.lastIndexOf("  ·  ");if(pos<0)return;
         BluetoothDevice device=devices.get(selected.substring(pos+5));if(device==null)return;
-        stopScan();disconnect();closed=false;retryCount=0;lastDevice=device;gotReading=false;notifications=0;secondarySubscribed=false;
+        stopScan();disconnect();closed=false;retryCount=0;lastDevice=device;gotReading=false;notifications=0;secondarySubscribed=false;loginPending=false;handler.removeCallbacks(loginFallback);
         listener.status("Connecting to "+selected+"…");
         try{gatt=device.connectGatt(activity,false,callback,BluetoothDevice.TRANSPORT_LE);}
         catch(SecurityException e){listener.status("Bluetooth permission denied");}
@@ -134,7 +136,7 @@ public class JbdMonitor {
                         return;
                     }catch(Exception ignored){}
                 }
-                listener.status("JBD connected · waiting for battery data");poll();handler.postDelayed(()->{if(gatt!=null&&!gotReading)listener.status("Connected · no valid JBD readings ("+notifications+" notifications)");},11000);}
+                listener.status("JBD connected · checking login");startLogin();handler.postDelayed(()->{if(gatt!=null&&!gotReading)listener.status("Connected · no valid JBD readings ("+notifications+" notifications)");},11000);}
             else listener.status("Could not enable JBD notifications");
         }
         @Override public void onCharacteristicChanged(BluetoothGatt g,BluetoothGattCharacteristic c){
@@ -145,6 +147,17 @@ public class JbdMonitor {
         }
     };
     private final Runnable poller=new Runnable(){public void run(){poll();}};
+    private void startLogin(){
+        if(gatt==null||write==null)return;
+        byte[] packet={(byte)0xff,(byte)0xaa,0x15,0x06,0x30,0x30,0x30,0x30,0x30,0x30,0x3b};
+        int type=(write.getProperties()&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0?BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE:BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+        loginPending=true;
+        try{
+            if(Build.VERSION.SDK_INT>=33){int result=gatt.writeCharacteristic(write,packet,type);if(result!=BluetoothStatusCodes.SUCCESS){loginPending=false;poll();return;}}
+            else{write.setWriteType(type);write.setValue(packet);if(!gatt.writeCharacteristic(write)){loginPending=false;poll();return;}}
+            handler.postDelayed(loginFallback,4000);
+        }catch(Exception e){loginPending=false;poll();}
+    }
     private void poll(){
         if(gatt==null||write==null)return;
         byte[] cmd={(byte)0xDD,(byte)0xA5,0x03,0x00,(byte)0xFF,(byte)0xFD,0x77};
@@ -159,6 +172,11 @@ public class JbdMonitor {
     private synchronized void parse(byte[] bytes){
         if(bytes==null)return;
         notifications++;
+        if(loginPending&&bytes.length>=5&&(bytes[0]&255)==0xff&&(bytes[1]&255)==0xaa&&(bytes[2]&255)==0x15){
+            loginPending=false;handler.removeCallbacks(loginFallback);
+            if((bytes[4]&255)==0){listener.status("JBD requires a Bluetooth password · use Offline BMS for authenticated access");return;}
+            listener.status("JBD login checked · requesting readings");handler.postDelayed(this::poll,200);return;
+        }
         for(byte b:bytes)rx.write(b);
         byte[] data=rx.toByteArray();int offset=0;
         while(offset+7<=data.length){
@@ -183,7 +201,7 @@ public class JbdMonitor {
         rx.reset();if(offset<data.length)rx.write(data,offset,Math.min(data.length-offset,128));
     }
     public void disconnect(){
-        closed=true;handler.removeCallbacks(poller);stopScan();write=null;notify=null;rx.reset();
+        closed=true;loginPending=false;handler.removeCallbacks(loginFallback);handler.removeCallbacks(poller);stopScan();write=null;notify=null;rx.reset();
         if(gatt!=null){try{gatt.disconnect();gatt.close();}catch(Exception ignored){}gatt=null;}
     }
 }
